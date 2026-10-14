@@ -7,6 +7,7 @@ export interface Settings {
   soundEffects: boolean
   alarmVolume: number
   environmentVolume: number
+  environmentMuted: boolean
   notificationsEnabled: boolean
   pomodoroAutoStart: boolean
   focusMinutes: number
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: Settings = {
   soundEffects: true,
   alarmVolume: 60,
   environmentVolume: 30,
+  environmentMuted: false,
   notificationsEnabled: false,
   pomodoroAutoStart: true,
   focusMinutes: 25,
@@ -38,6 +40,7 @@ function loadSettings(): Settings {
       soundEffects: typeof value.soundEffects === 'boolean' ? value.soundEffects : true,
       alarmVolume: typeof value.alarmVolume === 'number' ? Math.min(100, Math.max(0, value.alarmVolume)) : 60,
       environmentVolume: typeof value.environmentVolume === 'number' ? Math.min(100, Math.max(0, value.environmentVolume)) : 30,
+      environmentMuted: typeof value.environmentMuted === 'boolean' ? value.environmentMuted : false,
       notificationsEnabled: typeof value.notificationsEnabled === 'boolean' ? value.notificationsEnabled : false,
       pomodoroAutoStart: typeof value.pomodoroAutoStart === 'boolean' ? value.pomodoroAutoStart : true,
       focusMinutes: validMinutes(value.focusMinutes, 25, 180),

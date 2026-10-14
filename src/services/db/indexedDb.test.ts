@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach } from 'vitest'
-import { BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToProductivitySchema } from './indexedDb'
+import { AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToProductivitySchema } from './indexedDb'
 
 async function deleteTestDatabase() {
   closeDatabase()
@@ -56,4 +56,13 @@ test('adiciona stores criativas preservando schemas anteriores', async () => {
   const request = upgraded.transaction('habits', 'readonly').objectStore('habits').get('safe')
   const record = await new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
   expect(record).toMatchObject({ id: 'safe', name: 'Seguro' })
+})
+
+test('adiciona biblioteca de áudio preservando hábitos e stores anteriores', async () => {
+  const db = await openDatabase(); const tx = db.transaction('habits', 'readwrite'); tx.objectStore('habits').add({ id: 'legacy', name: 'Legado', days: Array(7).fill(false), createdAt: 1 }); await transactionDone(tx)
+  await upgradeToAudioSchema()
+  const upgraded = await openDatabase()
+  expect(upgraded.version).toBe(AUDIO_SCHEMA_VERSION)
+  expect(upgraded.objectStoreNames.contains(FOCUS_PLAYLISTS_STORE)).toBe(true)
+  expect(await new Promise((resolve, reject) => { const request = upgraded.transaction('habits').objectStore('habits').get('legacy'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })).toMatchObject({ name: 'Legado' })
 })

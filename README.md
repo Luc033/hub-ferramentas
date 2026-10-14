@@ -32,8 +32,8 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Kanban A Fazer/Fazendo/Concluído, com arraste no desktop e controles acessíveis de mover/reordenar.
 - Anotações em texto simples com salvamento automático e criação de nós no mapa mental.
 - Mapa mental com nós, conexões, arraste, zoom e deslocamento persistidos localmente.
-- Sons de foco sintetizados no navegador: ruído branco, chuva e ondas, com volume global.
+- Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O miniplayer global mantém a reprodução durante a navegação interna.
 
 Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação antes de elevar `HabitTrackerDB` para a versão nativa 3 e criar a store `tasks`. A migração também cria `habitCheckins` quando ela ainda não existe e nunca converte `days[7]` em datas.
 
-Os sons precisam de uma interação do usuário para iniciar, conforme as regras de reprodução dos navegadores. Eles não continuam com o navegador fechado. A opção Lo-fi permanece fora desta versão porque não há uma fonte de áudio licenciada definida.
+Os sons precisam de uma interação do usuário para iniciar, conforme as regras de reprodução dos navegadores. Eles não continuam com o navegador fechado. Rádio e playlists dependem de conexão, disponibilidade regional e regras dos provedores. Playlists adicionadas ficam na store `focusPlaylists` do IndexedDB nativo v5; nenhuma faixa é extraída, baixada ou enviada a um backend.
