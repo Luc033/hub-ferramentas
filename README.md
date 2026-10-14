@@ -31,7 +31,7 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Pomodoro automático com fases 25/5/15 configuráveis e pausa longa após quatro focos.
 - Kanban A Fazer/Fazendo/Concluído, com arraste no desktop e controles acessíveis de mover/reordenar.
 - Anotações em texto simples com salvamento automático e criação de nós no mapa mental.
-- Mapa mental com nós, conexões, arraste, zoom e deslocamento persistidos localmente.
+- Mapa mental com nós, conexões, arraste, pan, zoom, enquadramento e histórico de desfazer/refazer durante a sessão, persistidos localmente.
 - Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O miniplayer global mantém a reprodução durante a navegação interna.
 
 Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação antes de elevar `HabitTrackerDB` para a versão nativa 3 e criar a store `tasks`. A migração também cria `habitCheckins` quando ela ainda não existe e nunca converte `days[7]` em datas.

@@ -17,4 +17,14 @@ test('persiste notas, nós e remove conexões órfãs', async () => {
   expect(await notesRepository.getEdges()).toHaveLength(1)
   await notesRepository.deleteNode(first.id)
   expect(await notesRepository.getEdges()).toHaveLength(0)
+  await expect(notesRepository.connect(first.id, second.id)).rejects.toThrow('não existe')
+})
+
+test('substitui o grafo em uma única operação para desfazer e refazer', async () => {
+  const first = await notesRepository.createNode('Original', 10, 20)
+  const second = await notesRepository.createNode('Temporário', 100, 120)
+  await notesRepository.connect(first.id, second.id)
+  await notesRepository.replaceGraph([{ ...first, text: 'Restaurado' }], [])
+  expect(await notesRepository.getNodes()).toEqual([expect.objectContaining({ id: first.id, text: 'Restaurado' })])
+  expect(await notesRepository.getEdges()).toEqual([])
 })

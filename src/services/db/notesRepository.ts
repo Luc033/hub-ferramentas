@@ -34,9 +34,22 @@ export const notesRepository = {
     await transactionDone(tx); emit()
   },
   async getEdges(): Promise<MindEdge[]> { const db = await openDatabase(); const tx = db.transaction(EDGES_STORE, 'readonly'); const result = await requestResult(tx.objectStore(EDGES_STORE).index('boardId').getAll(BOARD_ID)) as MindEdge[]; await transactionDone(tx); return result },
+  async replaceGraph(nodes: MindNode[], edges: MindEdge[]) {
+    const db = await openDatabase(); const tx = db.transaction([NODES_STORE, EDGES_STORE], 'readwrite')
+    const nodeStore = tx.objectStore(NODES_STORE); const edgeStore = tx.objectStore(EDGES_STORE)
+    const [currentNodes, currentEdges] = await Promise.all([
+      requestResult(nodeStore.index('boardId').getAll(BOARD_ID)) as Promise<MindNode[]>,
+      requestResult(edgeStore.index('boardId').getAll(BOARD_ID)) as Promise<MindEdge[]>,
+    ])
+    currentNodes.forEach((node) => nodeStore.delete(node.id)); currentEdges.forEach((edge) => edgeStore.delete(edge.id))
+    nodes.forEach((node) => nodeStore.put(node)); edges.forEach((edge) => edgeStore.put(edge))
+    await transactionDone(tx); emit()
+  },
   async connect(sourceId: string, targetId: string) {
     if (sourceId === targetId) throw new Error('Escolha dois nós diferentes.')
-    const edges = await this.getEdges(); if (edges.some((edge) => edge.sourceId === sourceId && edge.targetId === targetId)) throw new Error('Esta conexão já existe.')
+    const [nodes, edges] = await Promise.all([this.getNodes(), this.getEdges()])
+    const nodeIds = new Set(nodes.map((node) => node.id)); if (!nodeIds.has(sourceId) || !nodeIds.has(targetId)) throw new Error('Um dos nós da conexão não existe mais.')
+    if (edges.some((edge) => edge.sourceId === sourceId && edge.targetId === targetId)) throw new Error('Esta conexão já existe.')
     const edge: MindEdge = { id: crypto.randomUUID(), boardId: BOARD_ID, sourceId, targetId }
     const db = await openDatabase(); const tx = db.transaction(EDGES_STORE, 'readwrite'); tx.objectStore(EDGES_STORE).add(edge); await transactionDone(tx); emit(); return edge
   },
