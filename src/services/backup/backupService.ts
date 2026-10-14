@@ -1,7 +1,8 @@
 import type { Habit, HabitCheckin } from '../../features/habits/types'
-import { CHECKINS_STORE, HABITS_STORE, openDatabase, requestResult, transactionDone } from '../db/indexedDb'
+import { BOARDS_STORE, CHECKINS_STORE, EDGES_STORE, HABITS_STORE, NODES_STORE, NOTES_STORE, openDatabase, requestResult, transactionDone } from '../db/indexedDb'
 import { TASKS_STORE } from '../db/indexedDb'
 import type { Task } from '../../features/tasks/types'
+import type { Board, MindEdge, MindNode, Note } from '../../features/notes/types'
 
 export interface HubBackup {
   schemaVersion: number
@@ -30,6 +31,11 @@ const isTask = (value: unknown): value is Task => {
   const item = value as Partial<Task>
   return typeof item.id === 'string' && typeof item.title === 'string' && typeof item.description === 'string' && ['todo', 'doing', 'done'].includes(String(item.status)) && typeof item.position === 'number' && typeof item.createdAt === 'number' && typeof item.updatedAt === 'number'
 }
+const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const isNote = (value: unknown): value is Note => Boolean(value && typeof value === 'object' && typeof (value as Note).id === 'string' && typeof (value as Note).title === 'string' && typeof (value as Note).content === 'string' && isFiniteNumber((value as Note).createdAt) && isFiniteNumber((value as Note).updatedAt))
+const isBoard = (value: unknown): value is Board => Boolean(value && typeof value === 'object' && typeof (value as Board).id === 'string' && typeof (value as Board).name === 'string' && isFiniteNumber((value as Board).panX) && isFiniteNumber((value as Board).panY) && isFiniteNumber((value as Board).zoom) && (value as Board).zoom >= .25 && (value as Board).zoom <= 3 && isFiniteNumber((value as Board).updatedAt))
+const isNode = (value: unknown): value is MindNode => Boolean(value && typeof value === 'object' && typeof (value as MindNode).id === 'string' && typeof (value as MindNode).boardId === 'string' && typeof (value as MindNode).text === 'string' && isFiniteNumber((value as MindNode).x) && isFiniteNumber((value as MindNode).y) && isFiniteNumber((value as MindNode).createdAt) && isFiniteNumber((value as MindNode).updatedAt))
+const isEdge = (value: unknown): value is MindEdge => Boolean(value && typeof value === 'object' && typeof (value as MindEdge).id === 'string' && typeof (value as MindEdge).boardId === 'string' && typeof (value as MindEdge).sourceId === 'string' && typeof (value as MindEdge).targetId === 'string')
 
 export function parseBackup(text: string): HubBackup {
   let parsed: unknown
@@ -47,6 +53,10 @@ export function parseBackup(text: string): HubBackup {
   if (!Array.isArray(backup.records.habits) || !backup.records.habits.every(isHabit)) throw new Error('A lista de hábitos do backup é inválida.')
   if (backup.records.habitCheckins && (!Array.isArray(backup.records.habitCheckins) || !backup.records.habitCheckins.every(isCheckin))) throw new Error('As marcações datadas do backup são inválidas.')
   if (backup.records.tasks && (!Array.isArray(backup.records.tasks) || !backup.records.tasks.every(isTask))) throw new Error('As tarefas do backup são inválidas.')
+  if (backup.records.notes && (!Array.isArray(backup.records.notes) || !backup.records.notes.every(isNote))) throw new Error('As notas do backup são inválidas.')
+  if (backup.records.boards && (!Array.isArray(backup.records.boards) || !backup.records.boards.every(isBoard))) throw new Error('Os quadros do backup são inválidos.')
+  if (backup.records.nodes && (!Array.isArray(backup.records.nodes) || !backup.records.nodes.every(isNode))) throw new Error('Os nós do backup são inválidos.')
+  if (backup.records.edges && (!Array.isArray(backup.records.edges) || !backup.records.edges.every(isEdge))) throw new Error('As conexões do backup são inválidas.')
   if (Object.values(backup.records).some((records) => records !== undefined && !Array.isArray(records))) throw new Error('Uma store do backup possui formato inválido.')
   return backup as HubBackup
 }
@@ -77,11 +87,17 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
   const db = await openDatabase()
   if (backup.records.habitCheckins?.length && !db.objectStoreNames.contains(CHECKINS_STORE)) throw new Error('Habilite marcações por data antes de importar este backup.')
   if (backup.records.tasks?.length && !db.objectStoreNames.contains(TASKS_STORE)) throw new Error('Habilite o Kanban antes de importar tarefas.')
-  const stores = [HABITS_STORE, ...(db.objectStoreNames.contains(CHECKINS_STORE) ? [CHECKINS_STORE] : []), ...(db.objectStoreNames.contains(TASKS_STORE) ? [TASKS_STORE] : [])]
+  if ([backup.records.notes, backup.records.boards, backup.records.nodes, backup.records.edges].some((records) => records?.length) && ![NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite Anotações antes de importar dados criativos.')
+  const optionalStores = [CHECKINS_STORE, TASKS_STORE, NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE].filter((name) => db.objectStoreNames.contains(name))
+  const stores = [HABITS_STORE, ...optionalStores]
   const transaction = db.transaction(stores, 'readwrite')
   const habitsStore = transaction.objectStore(HABITS_STORE)
   const checkinsStore = stores.includes(CHECKINS_STORE) ? transaction.objectStore(CHECKINS_STORE) : null
   const tasksStore = stores.includes(TASKS_STORE) ? transaction.objectStore(TASKS_STORE) : null
+  const notesStore = stores.includes(NOTES_STORE) ? transaction.objectStore(NOTES_STORE) : null
+  const boardsStore = stores.includes(BOARDS_STORE) ? transaction.objectStore(BOARDS_STORE) : null
+  const nodesStore = stores.includes(NODES_STORE) ? transaction.objectStore(NODES_STORE) : null
+  const edgesStore = stores.includes(EDGES_STORE) ? transaction.objectStore(EDGES_STORE) : null
   let imported = 0
   let ignored = 0
 
@@ -89,9 +105,14 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
     habitsStore.clear()
     checkinsStore?.clear()
     tasksStore?.clear()
+    notesStore?.clear(); boardsStore?.clear(); nodesStore?.clear(); edgesStore?.clear()
     backup.records.habits.forEach((record) => { habitsStore.put(record); imported++ })
     backup.records.habitCheckins?.forEach((record) => { checkinsStore?.put(record); imported++ })
     backup.records.tasks?.forEach((record) => { tasksStore?.put(record); imported++ })
+    backup.records.notes?.forEach((record) => { notesStore?.put(record); imported++ })
+    backup.records.boards?.forEach((record) => { boardsStore?.put(record); imported++ })
+    backup.records.nodes?.forEach((record) => { nodesStore?.put(record); imported++ })
+    backup.records.edges?.forEach((record) => { edgesStore?.put(record); imported++ })
   } else {
     for (const record of backup.records.habits) {
       const existing = await requestResult(habitsStore.get(record.id))
@@ -108,8 +129,18 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
       if (existing) ignored++
       else { tasksStore!.add(record); imported++ }
     }
+    for (const [records, store] of [[backup.records.notes, notesStore], [backup.records.boards, boardsStore], [backup.records.nodes, nodesStore], [backup.records.edges, edgesStore]] as const) {
+      for (const record of records ?? []) {
+        const id = (record as { id: string }).id
+        const existing = store ? await requestResult(store.get(id)) : true
+        if (existing) ignored++
+        else { store!.add(record); imported++ }
+      }
+    }
   }
   await transactionDone(transaction)
   window.dispatchEvent(new Event('habits:changed'))
+  window.dispatchEvent(new Event('tasks:changed'))
+  window.dispatchEvent(new Event('notes:changed'))
   return { imported, ignored }
 }

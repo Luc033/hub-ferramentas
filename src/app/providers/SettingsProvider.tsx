@@ -6,6 +6,7 @@ export interface Settings {
   theme: Theme
   soundEffects: boolean
   alarmVolume: number
+  environmentVolume: number
   notificationsEnabled: boolean
   pomodoroAutoStart: boolean
   focusMinutes: number
@@ -17,6 +18,7 @@ const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   soundEffects: true,
   alarmVolume: 60,
+  environmentVolume: 30,
   notificationsEnabled: false,
   pomodoroAutoStart: true,
   focusMinutes: 25,
@@ -35,6 +37,7 @@ function loadSettings(): Settings {
       theme: value.theme === 'light' ? 'light' : 'dark',
       soundEffects: typeof value.soundEffects === 'boolean' ? value.soundEffects : true,
       alarmVolume: typeof value.alarmVolume === 'number' ? Math.min(100, Math.max(0, value.alarmVolume)) : 60,
+      environmentVolume: typeof value.environmentVolume === 'number' ? Math.min(100, Math.max(0, value.environmentVolume)) : 30,
       notificationsEnabled: typeof value.notificationsEnabled === 'boolean' ? value.notificationsEnabled : false,
       pomodoroAutoStart: typeof value.pomodoroAutoStart === 'boolean' ? value.pomodoroAutoStart : true,
       focusMinutes: validMinutes(value.focusMinutes, 25, 180),

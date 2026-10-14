@@ -15,3 +15,9 @@ test('rejeita tarefas com status desconhecido', () => {
   const data = { schemaVersion: 3, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [], tasks: [{ id: 'x', title: 'x', description: '', status: 'hack', position: 0, createdAt: 1, updatedAt: 1 }] } }
   expect(() => parseBackup(JSON.stringify(data))).toThrow('tarefas')
 })
+
+test('valida arrays e coordenadas dos dados criativos', () => {
+  const metadata = { schemaVersion: 4, exportedAt: new Date().toISOString(), appVersion: 'test' }
+  expect(() => parseBackup(JSON.stringify({ ...metadata, records: { habits: [], notes: { id: 'x' } } }))).toThrow('notas')
+  expect(() => parseBackup(JSON.stringify({ ...metadata, records: { habits: [], boards: [{ id: 'main', name: 'Quadro', panX: 0, panY: 0, zoom: 99, updatedAt: 1 }] } }))).toThrow('quadros')
+})

@@ -8,6 +8,7 @@ import { SettingsPanel } from '../components/layout/SettingsPanel'
 import { useSettings } from './providers/SettingsProvider'
 import { notificationsService } from '../services/notifications/notificationsService'
 import { pomodoroService } from '../features/pomodoro/pomodoroService'
+import { focusSoundService } from '../services/audio/focusSoundService'
 
 export function App() {
   const clock = useClock()
@@ -20,6 +21,7 @@ export function App() {
   }, [])
   useEffect(() => {
     audioService.configure(settings.soundEffects, settings.alarmVolume)
+    focusSoundService.setVolume(settings.environmentVolume)
     if (clock.status === 'alarming') audioService.startAlarm()
     else audioService.stopAlarm()
     if (clock.status === 'running' || clock.status === 'paused') document.title = `(${formatDuration(clock.remainingMs)}) ${clock.mode === 'pomodoro' ? 'Pomodoro' : 'Temporizador'}`

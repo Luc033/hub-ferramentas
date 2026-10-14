@@ -20,6 +20,8 @@ IndexedDB é isolado por origem. `file://`, cada porta de `localhost`, deploy pr
 
 O projeto abre a base legada `HabitTrackerDB` sem elevar sua versão automaticamente quando ela contém hábitos. Os sete valores de `days` são exibidos como marcações legadas sem data. Para começar a registrar datas reais, use **Baixar backup e habilitar datas**; a ação baixa uma cópia antes de criar a store `habitCheckins` na versão nativa 2.
 
+Anotações e Mapa Mental usam a versão nativa 4, com as stores `notes`, `boards`, `nodes` e `edges`. A área criativa só eleva o schema depois de baixar um backup e receber confirmação. A migração é aditiva: mantém `habits`, `habitCheckins` e `tasks`, criando qualquer store intermediária ausente. O conteúdo das notas é tratado como texto simples.
+
 As preferências de interface e a sessão ativa do Timer usam chaves locais versionadas no `localStorage`. Essa política evita elevar silenciosamente a versão de uma base legada apenas para trocar tema ou volume. Hábitos e check-ins continuam no IndexedDB e não são duplicados no `localStorage`.
 
 ## Ferramentas disponíveis
@@ -28,5 +30,10 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Timer com relógio absoluto, persistência e associação opcional a uma tarefa.
 - Pomodoro automático com fases 25/5/15 configuráveis e pausa longa após quatro focos.
 - Kanban A Fazer/Fazendo/Concluído, com arraste no desktop e controles acessíveis de mover/reordenar.
+- Anotações em texto simples com salvamento automático e criação de nós no mapa mental.
+- Mapa mental com nós, conexões, arraste, zoom e deslocamento persistidos localmente.
+- Sons de foco sintetizados no navegador: ruído branco, chuva e ondas, com volume global.
 
 Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação antes de elevar `HabitTrackerDB` para a versão nativa 3 e criar a store `tasks`. A migração também cria `habitCheckins` quando ela ainda não existe e nunca converte `days[7]` em datas.
+
+Os sons precisam de uma interação do usuário para iniciar, conforme as regras de reprodução dos navegadores. Eles não continuam com o navegador fechado. A opção Lo-fi permanece fora desta versão porque não há uma fonte de áudio licenciada definida.

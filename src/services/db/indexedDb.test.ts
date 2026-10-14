@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach } from 'vitest'
-import { CHECKINS_STORE, DB_NAME, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToDatedCheckins, upgradeToProductivitySchema } from './indexedDb'
+import { BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToProductivitySchema } from './indexedDb'
 
 async function deleteTestDatabase() {
   closeDatabase()
@@ -45,4 +45,15 @@ test('adiciona a store de tarefas sem modificar os hábitos', async () => {
   const request = upgraded.transaction('habits', 'readonly').objectStore('habits').get('habit-1')
   const record = await new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
   expect(record).toEqual(original)
+})
+
+test('adiciona stores criativas preservando schemas anteriores', async () => {
+  const db = await openDatabase(); const tx = db.transaction('habits', 'readwrite'); tx.objectStore('habits').add({ id: 'safe', name: 'Seguro', days: Array(7).fill(false), createdAt: 1 }); await transactionDone(tx)
+  await upgradeToCreativeSchema()
+  const upgraded = await openDatabase()
+  expect(upgraded.version).toBe(4)
+  for (const store of [CHECKINS_STORE, TASKS_STORE, NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE]) expect(upgraded.objectStoreNames.contains(store)).toBe(true)
+  const request = upgraded.transaction('habits', 'readonly').objectStore('habits').get('safe')
+  const record = await new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+  expect(record).toMatchObject({ id: 'safe', name: 'Seguro' })
 })
