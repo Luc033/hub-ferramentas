@@ -16,7 +16,7 @@ O build para publicação fica em `dist/`. O `netlify.toml` configura o fallback
 
 ## Dados e mudança de endereço
 
-IndexedDB é isolado por origem. `file://`, cada porta de `localhost`, deploy previews e o domínio final da Netlify possuem bases diferentes. Antes de trocar de endereço, use **Exportar backup** na página de Hábitos. No endereço novo, use **Importar backup** e escolha mesclar ou substituir.
+IndexedDB é isolado por origem. `file://`, cada porta de `localhost`, deploy previews e o domínio final da Netlify possuem bases diferentes. Antes de trocar de endereço, abra **Configurações → Dados locais** e use **Exportar dados (.json)**. No endereço novo, importe o arquivo e escolha mesclar ou substituir. O backup reúne todas as stores habilitadas; a substituição baixa uma cópia de segurança antes da confirmação final.
 
 O projeto abre a base legada `HabitTrackerDB` sem elevar sua versão automaticamente quando ela contém hábitos. Os sete valores de `days` são exibidos como marcações legadas sem data. Para começar a registrar datas reais, use **Baixar backup e habilitar datas**; a ação baixa uma cópia antes de criar a store `habitCheckins` na versão nativa 2.
 
