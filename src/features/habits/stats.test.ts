@@ -1,4 +1,4 @@
-import { datedTotals, legacyStats, weeklyPercentage } from './stats'
+import { datedStreak, datedTotals, legacyStats, weeklyPercentage } from './stats'
 import type { Habit, HabitCheckin } from './types'
 
 const habits: Habit[] = [
@@ -8,6 +8,13 @@ const habits: Habit[] = [
 
 test('calcula o legado sem transformar índices em datas', () => {
   expect(legacyStats(habits[0].days)).toEqual({ completed: 2, percentage: 29, longest: 1 })
+})
+
+test('ignora dias futuros nos totais e calcula sequências históricas reais', () => {
+  const week = ['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17']
+  const checkins: HabitCheckin[] = ['2026-10-09', '2026-10-10', '2026-10-12', '2026-10-13', '2026-10-15'].map((date) => ({ id: `a:${date}`, habitId: 'a', date, completedAt: 1 }))
+  expect(datedTotals(habits, checkins, week, '2026-10-14')).toEqual([0, 1, 1, 0, 0, 0, 0])
+  expect(datedStreak(checkins, 'a', '2026-10-14')).toEqual({ current: 2, longest: 2 })
 })
 
 test('conta somente check-ins datados da semana e de hábitos existentes', () => {

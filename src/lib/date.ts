@@ -8,10 +8,26 @@ export function toLocalDateKey(date = new Date()): string {
 }
 
 export function currentWeekKeys(now = new Date()): string[] {
+  return weekKeysForOffset(0, now)
+}
+
+export function weekKeysForOffset(offset: number, now = new Date()): string[] {
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+  start.setDate(start.getDate() + offset * 7)
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start)
     date.setDate(start.getDate() + index)
     return toLocalDateKey(date)
   })
+}
+
+export function fromLocalDateKey(key: string): Date {
+  const [year, month, day] = key.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+export function weekRangeLabel(keys: string[]): string {
+  if (keys.length < 7) return ''
+  const format = (key: string) => fromLocalDateKey(key).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
+  return `${format(keys[0])} – ${format(keys[6])}`
 }
