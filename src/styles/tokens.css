@@ -17,3 +17,22 @@
   --danger: #ef4444;
   --focus-ring: #818cf8;
 }
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-strong: #0f172a;
+  --text-muted: #475569;
+  --brand: #4f46e5;
+  --brand-hover: #4338ca;
+  --success: #047857;
+  --timer: #0e7490;
+  --focus: #be123c;
+  --warning: #b45309;
+  --danger: #b91c1c;
+  --focus-ring: #4f46e5;
+}

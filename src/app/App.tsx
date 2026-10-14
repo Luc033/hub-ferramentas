@@ -4,9 +4,13 @@ import { audioService } from '../services/audio/audioService'
 import { formatDuration } from '../services/clock/ClockService'
 import { clockService } from '../services/clock/ClockService'
 import { useClock } from '../services/clock/useClock'
+import { SettingsPanel } from '../components/layout/SettingsPanel'
+import { useSettings } from './providers/SettingsProvider'
+import { notificationsService } from '../services/notifications/notificationsService'
 
 export function App() {
   const clock = useClock()
+  const { settings } = useSettings()
   useEffect(() => {
     const sync = () => clockService.sync()
     document.addEventListener('visibilitychange', sync)
@@ -14,11 +18,16 @@ export function App() {
     return () => { document.removeEventListener('visibilitychange', sync); window.removeEventListener('focus', sync) }
   }, [])
   useEffect(() => {
+    audioService.configure(settings.soundEffects, settings.alarmVolume)
     if (clock.status === 'alarming') audioService.startAlarm()
     else audioService.stopAlarm()
     if (clock.status === 'running' || clock.status === 'paused') document.title = `(${formatDuration(clock.remainingMs)}) Temporizador`
     else if (clock.status === 'alarming') document.title = '⏰ ALARME! ⏰'
     else document.title = 'Hub de Ferramentas Pessoais'
-  }, [clock])
-  return <Outlet />
+    if (clock.status === 'alarming' && settings.notificationsEnabled && !clock.notificationSent) {
+      notificationsService.notifyTimerFinished()
+      clockService.markNotificationSent()
+    }
+  }, [clock, settings])
+  return <><SettingsPanel /><Outlet /></>
 }

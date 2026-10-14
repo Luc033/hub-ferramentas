@@ -87,7 +87,12 @@ export default function HabitsPage() {
   const toggle = async (habit: Habit, index: number) => {
     try {
       const checked = info?.supportsDatedCheckins ? await habitsRepository.toggleDate(habit.id, weekKeys[index]) : await habitsRepository.toggleLegacyDay(habit, index)
-      if (checked) audioService.playCheck(false)
+      if (checked) {
+        const completedBefore = info?.supportsDatedCheckins
+          ? checkins.filter((item) => item.habitId === habit.id && weekKeys.includes(item.date)).length
+          : habit.days.filter(Boolean).length
+        audioService.playCheck(completedBefore + 1 === 7)
+      }
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível atualizar a marcação.') }
   }
   const enableDates = async () => {

@@ -2,6 +2,14 @@ class AudioService {
   private context: AudioContext | null = null
   private alarmInterval: ReturnType<typeof setInterval> | null = null
   private alarmTimeout: ReturnType<typeof setTimeout> | null = null
+  private enabled = true
+  private alarmVolume = .6
+
+  configure(enabled: boolean, alarmVolume: number) {
+    this.enabled = enabled
+    this.alarmVolume = Math.min(1, Math.max(0, alarmVolume / 100))
+    if (!enabled || this.alarmVolume === 0) this.stopAlarm()
+  }
 
   unlock() {
     const AudioContextClass = window.AudioContext
@@ -10,6 +18,7 @@ class AudioService {
   }
 
   playCheck(complete = false) {
+    if (!this.enabled) return
     try {
       this.unlock()
       const frequencies = complete ? [523.25, 659.25, 783.99, 1046.5] : [600, 1200]
@@ -18,10 +27,11 @@ class AudioService {
   }
 
   startAlarm() {
+    if (!this.enabled || this.alarmVolume === 0) return
     try {
       this.unlock()
       if (this.alarmInterval) return
-      const pattern = () => [0, .15, .3, .45].forEach((offset) => this.tone(880, offset, 'square', .1, .22))
+      const pattern = () => [0, .15, .3, .45].forEach((offset) => this.tone(880, offset, 'square', .1, .36 * this.alarmVolume))
       pattern()
       this.alarmInterval = setInterval(pattern, 1000)
       this.alarmTimeout = setTimeout(() => this.stopAlarm(), 60_000)
