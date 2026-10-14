@@ -4,6 +4,8 @@ export const DB_NAME = 'HabitTrackerDB'
 export const HABITS_STORE = 'habits'
 export const CHECKINS_STORE = 'habitCheckins'
 export const DATED_SCHEMA_VERSION = 2
+export const TASKS_STORE = 'tasks'
+export const PRODUCTIVITY_SCHEMA_VERSION = 3
 
 let connection: IDBDatabase | null = null
 let opening: Promise<IDBDatabase> | null = null
@@ -82,6 +84,33 @@ export async function upgradeToDatedCheckins(): Promise<HabitDatabaseInfo> {
     request.onsuccess = () => { configureConnection(request.result); resolve() }
     request.onerror = () => reject(request.error ?? new Error('Não foi possível atualizar a base local.'))
     request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de habilitar as marcações por data.'))
+  })
+  return inspectDatabase()
+}
+
+export async function upgradeToProductivitySchema(): Promise<HabitDatabaseInfo> {
+  const current = await openDatabase()
+  if (current.objectStoreNames.contains(TASKS_STORE)) return inspectDatabase()
+  if (current.version > PRODUCTIVITY_SCHEMA_VERSION) throw new Error(`A base usa a versão ${current.version}, mais nova que esta aplicação.`)
+  closeDatabase()
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, PRODUCTIVITY_SCHEMA_VERSION)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(CHECKINS_STORE)) {
+        const checkins = db.createObjectStore(CHECKINS_STORE, { keyPath: 'id' })
+        checkins.createIndex('habitId', 'habitId', { unique: false })
+        checkins.createIndex('date', 'date', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(TASKS_STORE)) {
+        const tasks = db.createObjectStore(TASKS_STORE, { keyPath: 'id' })
+        tasks.createIndex('status', 'status', { unique: false })
+        tasks.createIndex('updatedAt', 'updatedAt', { unique: false })
+      }
+    }
+    request.onsuccess = () => { configureConnection(request.result); resolve() }
+    request.onerror = () => reject(request.error ?? new Error('Não foi possível criar a área de tarefas.'))
+    request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de habilitar o Kanban.'))
   })
   return inspectDatabase()
 }

@@ -5,9 +5,9 @@ export const notificationsService = {
     if (typeof Notification === 'undefined') return 'unsupported' as const
     return Notification.requestPermission()
   },
-  notifyTimerFinished() {
+  notifyFinished(mode: 'timer' | 'pomodoro', body?: string) {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false
-    const notification = new Notification('Temporizador concluído', { body: 'O tempo definido chegou ao fim.', icon: '/favicon.svg', tag: 'hub-timer-finished' })
+    const notification = new Notification(mode === 'pomodoro' ? 'Fase Pomodoro concluída' : 'Temporizador concluído', { body: body ?? 'O tempo definido chegou ao fim.', icon: '/favicon.svg', tag: `hub-${mode}-finished` })
     notification.onclick = () => { window.focus(); notification.close() }
     return true
   },

@@ -5,7 +5,7 @@ afterEach(() => vi.unstubAllGlobals())
 test('não tenta notificar quando a API não existe', () => {
   vi.stubGlobal('Notification', undefined)
   expect(notificationsService.permission()).toBe('unsupported')
-  expect(notificationsService.notifyTimerFinished()).toBe(false)
+  expect(notificationsService.notifyFinished('timer')).toBe(false)
 })
 
 test('solicita permissão somente quando o método é chamado', async () => {

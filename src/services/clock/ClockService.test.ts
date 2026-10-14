@@ -22,6 +22,22 @@ test('usa endAt absoluto ao sincronizar e finaliza uma única vez', () => {
   clock.destroy()
 })
 
+test('mantém o modo da sessão no motor compartilhado', () => {
+  const clock = new ClockService({ storage: null })
+  clock.setDuration(1_000, 'pomodoro')
+  expect(clock.getSnapshot()).toMatchObject({ mode: 'pomodoro', status: 'ready' })
+  clock.destroy()
+})
+
+test('associa uma tarefa sem presumir duração', () => {
+  const clock = new ClockService({ storage: null })
+  clock.associateTask('timer', 'task-1', 'Preparar relatório')
+  expect(clock.getSnapshot()).toMatchObject({ mode: 'timer', status: 'idle', durationMs: 0, taskId: 'task-1', taskTitle: 'Preparar relatório' })
+  clock.setDuration(60_000, 'timer')
+  expect(clock.getSnapshot().taskId).toBe('task-1')
+  clock.destroy()
+})
+
 test('pausa e retoma a partir do saldo real', () => {
   let now = 0
   const clock = new ClockService({ now: () => now, storage: null })

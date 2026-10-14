@@ -1,5 +1,7 @@
 import type { Habit, HabitCheckin } from '../../features/habits/types'
 import { CHECKINS_STORE, HABITS_STORE, openDatabase, requestResult, transactionDone } from '../db/indexedDb'
+import { TASKS_STORE } from '../db/indexedDb'
+import type { Task } from '../../features/tasks/types'
 
 export interface HubBackup {
   schemaVersion: number
@@ -23,6 +25,12 @@ const isCheckin = (value: unknown): value is HabitCheckin => {
   return typeof item.id === 'string' && typeof item.habitId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(String(item.date)) && typeof item.completedAt === 'number'
 }
 
+const isTask = (value: unknown): value is Task => {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Partial<Task>
+  return typeof item.id === 'string' && typeof item.title === 'string' && typeof item.description === 'string' && ['todo', 'doing', 'done'].includes(String(item.status)) && typeof item.position === 'number' && typeof item.createdAt === 'number' && typeof item.updatedAt === 'number'
+}
+
 export function parseBackup(text: string): HubBackup {
   let parsed: unknown
   try { parsed = JSON.parse(text) } catch { throw new Error('O arquivo não contém JSON válido.') }
@@ -38,6 +46,7 @@ export function parseBackup(text: string): HubBackup {
   if (typeof backup.schemaVersion !== 'number' || typeof backup.exportedAt !== 'string' || typeof backup.appVersion !== 'string' || !backup.records) throw new Error('Metadados obrigatórios ausentes no backup.')
   if (!Array.isArray(backup.records.habits) || !backup.records.habits.every(isHabit)) throw new Error('A lista de hábitos do backup é inválida.')
   if (backup.records.habitCheckins && (!Array.isArray(backup.records.habitCheckins) || !backup.records.habitCheckins.every(isCheckin))) throw new Error('As marcações datadas do backup são inválidas.')
+  if (backup.records.tasks && (!Array.isArray(backup.records.tasks) || !backup.records.tasks.every(isTask))) throw new Error('As tarefas do backup são inválidas.')
   if (Object.values(backup.records).some((records) => records !== undefined && !Array.isArray(records))) throw new Error('Uma store do backup possui formato inválido.')
   return backup as HubBackup
 }
@@ -67,18 +76,22 @@ export async function downloadBackup() {
 export async function importBackup(backup: HubBackup, mode: ImportMode): Promise<ImportReport> {
   const db = await openDatabase()
   if (backup.records.habitCheckins?.length && !db.objectStoreNames.contains(CHECKINS_STORE)) throw new Error('Habilite marcações por data antes de importar este backup.')
-  const stores = [HABITS_STORE, ...(db.objectStoreNames.contains(CHECKINS_STORE) ? [CHECKINS_STORE] : [])]
+  if (backup.records.tasks?.length && !db.objectStoreNames.contains(TASKS_STORE)) throw new Error('Habilite o Kanban antes de importar tarefas.')
+  const stores = [HABITS_STORE, ...(db.objectStoreNames.contains(CHECKINS_STORE) ? [CHECKINS_STORE] : []), ...(db.objectStoreNames.contains(TASKS_STORE) ? [TASKS_STORE] : [])]
   const transaction = db.transaction(stores, 'readwrite')
   const habitsStore = transaction.objectStore(HABITS_STORE)
   const checkinsStore = stores.includes(CHECKINS_STORE) ? transaction.objectStore(CHECKINS_STORE) : null
+  const tasksStore = stores.includes(TASKS_STORE) ? transaction.objectStore(TASKS_STORE) : null
   let imported = 0
   let ignored = 0
 
   if (mode === 'replace') {
     habitsStore.clear()
     checkinsStore?.clear()
+    tasksStore?.clear()
     backup.records.habits.forEach((record) => { habitsStore.put(record); imported++ })
     backup.records.habitCheckins?.forEach((record) => { checkinsStore?.put(record); imported++ })
+    backup.records.tasks?.forEach((record) => { tasksStore?.put(record); imported++ })
   } else {
     for (const record of backup.records.habits) {
       const existing = await requestResult(habitsStore.get(record.id))
@@ -89,6 +102,11 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
       const existing = checkinsStore ? await requestResult(checkinsStore.get(record.id)) : true
       if (existing) ignored++
       else { checkinsStore!.add(record); imported++ }
+    }
+    for (const record of backup.records.tasks ?? []) {
+      const existing = tasksStore ? await requestResult(tasksStore.get((record as Task).id)) : true
+      if (existing) ignored++
+      else { tasksStore!.add(record); imported++ }
     }
   }
   await transactionDone(transaction)

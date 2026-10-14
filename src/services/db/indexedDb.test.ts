@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach } from 'vitest'
-import { CHECKINS_STORE, DB_NAME, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToDatedCheckins } from './indexedDb'
+import { CHECKINS_STORE, DB_NAME, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToDatedCheckins, upgradeToProductivitySchema } from './indexedDb'
 
 async function deleteTestDatabase() {
   closeDatabase()
@@ -28,5 +28,21 @@ test('atualiza uma base nativa v1 preservando integralmente o hábito legado', a
   expect(updated.objectStoreNames.contains(CHECKINS_STORE)).toBe(true)
   const read = updated.transaction('habits', 'readonly').objectStore('habits').get('legacy-1')
   const record = await new Promise((resolve, reject) => { read.onsuccess = () => resolve(read.result); read.onerror = () => reject(read.error) })
+  expect(record).toEqual(original)
+})
+
+test('adiciona a store de tarefas sem modificar os hábitos', async () => {
+  const original = { id: 'habit-1', name: 'Ler', days: Array(7).fill(false), createdAt: 456 }
+  const db = await openDatabase()
+  const transaction = db.transaction('habits', 'readwrite')
+  transaction.objectStore('habits').add(original)
+  await transactionDone(transaction)
+  await upgradeToProductivitySchema()
+  const upgraded = await openDatabase()
+  expect(upgraded.version).toBe(3)
+  expect(upgraded.objectStoreNames.contains(CHECKINS_STORE)).toBe(true)
+  expect(upgraded.objectStoreNames.contains(TASKS_STORE)).toBe(true)
+  const request = upgraded.transaction('habits', 'readonly').objectStore('habits').get('habit-1')
+  const record = await new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
   expect(record).toEqual(original)
 })

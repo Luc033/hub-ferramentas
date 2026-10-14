@@ -1,17 +1,21 @@
 export type ClockStatus = 'idle' | 'ready' | 'running' | 'paused' | 'alarming'
+export type ClockMode = 'timer' | 'pomodoro'
 
 export interface ClockState {
   status: ClockStatus
+  mode: ClockMode
   durationMs: number
   remainingMs: number
   startedAt: number | null
   endAt: number | null
   finishedAt: number | null
   notificationSent: boolean
+  taskId: string | null
+  taskTitle: string | null
 }
 
 const STORAGE_KEY = 'hub.timer.session.v1'
-const EMPTY_STATE: ClockState = { status: 'idle', durationMs: 0, remainingMs: 0, startedAt: null, endAt: null, finishedAt: null, notificationSent: false }
+const EMPTY_STATE: ClockState = { status: 'idle', mode: 'timer', durationMs: 0, remainingMs: 0, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, taskId: null, taskTitle: null }
 
 export function formatDuration(milliseconds: number) {
   const total = Math.max(0, Math.ceil(milliseconds / 1000))
@@ -38,9 +42,10 @@ export class ClockService {
   getSnapshot = () => this.state
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
 
-  setDuration(milliseconds: number) {
+  setDuration(milliseconds: number, mode: ClockMode = 'timer') {
     if (!Number.isFinite(milliseconds) || milliseconds <= 0) throw new Error('Informe um tempo maior que zero.')
-    this.state = { status: 'ready', durationMs: milliseconds, remainingMs: milliseconds, startedAt: null, endAt: null, finishedAt: null, notificationSent: false }
+    const keepTask = this.state.mode === mode
+    this.state = { status: 'ready', mode, durationMs: milliseconds, remainingMs: milliseconds, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, taskId: keepTask ? this.state.taskId : null, taskTitle: keepTask ? this.state.taskTitle : null }
     this.commit()
   }
 
@@ -63,6 +68,15 @@ export class ClockService {
 
   reset() { this.stopTicker(); this.state = { ...EMPTY_STATE }; this.commit() }
   stopAlarm() { if (this.state.status === 'alarming') this.reset() }
+  associateTask(mode: ClockMode, taskId: string, taskTitle: string) {
+    this.stopTicker()
+    this.state = { ...EMPTY_STATE, mode, taskId, taskTitle }
+    this.commit()
+  }
+  clearTask() {
+    this.state = { ...this.state, taskId: null, taskTitle: null }
+    this.commit()
+  }
   markNotificationSent() {
     if (this.state.status !== 'alarming' || this.state.notificationSent) return
     this.state = { ...this.state, notificationSent: true }
@@ -87,7 +101,7 @@ export class ClockService {
   private stopTicker() { if (this.interval) { clearInterval(this.interval); this.interval = null } }
   private emit() { this.listeners.forEach((listener) => listener()) }
   private commit() {
-    if (this.state.status === 'idle') this.storage?.removeItem(STORAGE_KEY)
+    if (this.state.status === 'idle' && !this.state.taskId) this.storage?.removeItem(STORAGE_KEY)
     else this.storage?.setItem(STORAGE_KEY, JSON.stringify(this.state))
     this.emit()
   }
@@ -98,7 +112,7 @@ export class ClockService {
       const parsed = JSON.parse(raw) as ClockState
       if (!['idle', 'ready', 'running', 'paused', 'alarming'].includes(parsed.status) || !Number.isFinite(parsed.remainingMs)) return { ...EMPTY_STATE }
       if (parsed.status === 'running' && parsed.endAt !== null && parsed.endAt <= this.now()) return { ...parsed, status: 'alarming', remainingMs: 0, endAt: null, finishedAt: this.now(), notificationSent: false }
-      return { ...parsed, notificationSent: Boolean(parsed.notificationSent) }
+      return { ...parsed, mode: parsed.mode === 'pomodoro' ? 'pomodoro' : 'timer', notificationSent: Boolean(parsed.notificationSent), taskId: typeof parsed.taskId === 'string' ? parsed.taskId : null, taskTitle: typeof parsed.taskTitle === 'string' ? parsed.taskTitle : null }
     } catch { return { ...EMPTY_STATE } }
   }
 }

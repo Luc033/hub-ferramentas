@@ -9,6 +9,9 @@ import { formatDuration } from '../../services/clock/ClockService'
 import { clockService } from '../../services/clock/ClockService'
 import { audioService } from '../../services/audio/audioService'
 import { toLocalDateKey } from '../../lib/date'
+import { usePomodoro } from '../pomodoro/usePomodoro'
+import { pomodoroService } from '../pomodoro/pomodoroService'
+import { tasksRepository } from '../../services/db/tasksRepository'
 
 interface HabitSummary {
   total: number
@@ -24,22 +27,29 @@ const accents = {
   blue: 'bg-blue-500/10 text-blue-400',
 }
 
-function ToolCard({ tool, habitSummary }: { tool: ToolDefinition; habitSummary: HabitSummary | null }) {
+interface TasksSummary { enabled: boolean; todo: number; doing: number }
+
+function ToolCard({ tool, habitSummary, tasksSummary }: { tool: ToolDefinition; habitSummary: HabitSummary | null; tasksSummary: TasksSummary | null }) {
   const clock = useClock()
+  const pomodoro = usePomodoro()
   const Icon = tool.icon
   const available = tool.status === 'available'
   const liveText = tool.widget === 'habits'
     ? habitSummary === null ? 'Carregando dados locais…' : habitSummary.completedToday === null ? `${habitSummary.total} ${habitSummary.total === 1 ? 'hábito cadastrado' : 'hábitos cadastrados'} · histórico legado` : `Hoje: ${habitSummary.completedToday}/${habitSummary.total}`
     : tool.widget === 'timer'
-      ? clock.status === 'running' ? `Em execução · ${formatDuration(clock.remainingMs)}` : clock.status === 'paused' ? `Pausado · ${formatDuration(clock.remainingMs)}` : clock.status === 'alarming' ? 'Alarme' : 'Nenhum temporizador ativo'
-      : null
+      ? clock.mode !== 'timer' ? 'Nenhum temporizador ativo' : clock.status === 'running' ? `Em execução · ${formatDuration(clock.remainingMs)}` : clock.status === 'paused' ? `Pausado · ${formatDuration(clock.remainingMs)}` : clock.status === 'alarming' ? 'Alarme' : 'Nenhum temporizador ativo'
+      : tool.widget === 'pomodoro'
+        ? clock.mode === 'pomodoro' && ['running', 'paused', 'alarming'].includes(clock.status) ? `${pomodoro.phase === 'focus' ? 'Foco' : pomodoro.phase === 'short-break' ? 'Pausa curta' : 'Pausa longa'} · ${formatDuration(clock.remainingMs)} · ${pomodoro.completedInCycle}/4` : 'Pronto para focar'
+        : tool.widget === 'tasks'
+          ? tasksSummary === null ? 'Carregando tarefas…' : tasksSummary.enabled ? `${tasksSummary.todo} a fazer · ${tasksSummary.doing} fazendo` : 'Kanban ainda não habilitado'
+          : null
 
   return <article className={`app-card group relative flex min-h-80 flex-col overflow-hidden p-6 transition-all ${available ? 'hover:-translate-y-0.5 hover:shadow-xl' : 'opacity-75'}`}>
     {!available && <span className="absolute right-4 top-4 rounded-full bg-slate-700/80 px-3 py-1 text-xs font-semibold text-slate-300">Em breve</span>}
     <div className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform ${accents[tool.accent]} ${available ? 'group-hover:scale-110' : ''}`}><Icon size={27} /></div>
     <h2 className="mb-2 text-xl font-bold text-strong">{tool.title}</h2>
     <p className="mb-4 flex-grow text-sm leading-relaxed text-slate-400">{tool.description}</p>
-    {liveText && <div className="mb-4 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs font-medium text-slate-300" aria-live="polite"><p>{liveText}</p>{tool.widget === 'habits' && habitSummary?.completedToday !== null && habitSummary && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-700"><div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${habitSummary.total ? (habitSummary.completedToday! / habitSummary.total) * 100 : 0}%` }} /></div>}{tool.widget === 'timer' && ['running', 'paused'].includes(clock.status) && <button className="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-2.5 font-semibold text-cyan-400 hover:bg-slate-700" onClick={() => { if (clock.status === 'running') clockService.pause(); else { audioService.unlock(); clockService.start() } }}>{clock.status === 'running' ? <><Pause size={13} />Pausar</> : <><Play size={13} />Retomar</>}</button>}</div>}
+    {liveText && <div className="mb-4 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs font-medium text-slate-300" aria-live="polite"><p>{liveText}</p>{tool.widget === 'habits' && habitSummary?.completedToday !== null && habitSummary && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-700"><div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${habitSummary.total ? (habitSummary.completedToday! / habitSummary.total) * 100 : 0}%` }} /></div>}{tool.widget === 'timer' && clock.mode === 'timer' && ['running', 'paused'].includes(clock.status) && <button className="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-2.5 font-semibold text-cyan-400 hover:bg-slate-700" onClick={() => { if (clock.status === 'running') clockService.pause(); else { audioService.unlock(); clockService.start() } }}>{clock.status === 'running' ? <><Pause size={13} />Pausar</> : <><Play size={13} />Retomar</>}</button>}{tool.widget === 'pomodoro' && clock.mode === 'pomodoro' && ['running', 'paused'].includes(clock.status) && <button className="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-2.5 font-semibold text-rose-400 hover:bg-slate-700" onClick={() => { if (clock.status === 'running') pomodoroService.pause(); else { audioService.unlock(); clockService.start() } }}>{clock.status === 'running' ? <><Pause size={13} />Pausar</> : <><Play size={13} />Retomar</>}</button>}</div>}
     {available ? <Link to={tool.path} className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-white shadow-lg transition-colors ${tool.id === 'timer' ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>Abrir Aplicativo <ArrowRight size={17} /></Link>
       : <span className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-700/50 px-4 py-3 font-medium text-slate-400"><LockKeyhole size={16} />Indisponível</span>}
   </article>
@@ -47,6 +57,7 @@ function ToolCard({ tool, habitSummary }: { tool: ToolDefinition; habitSummary: 
 
 export default function HomePage() {
   const [habitSummary, setHabitSummary] = useState<HabitSummary | null>(null)
+  const [tasksSummary, setTasksSummary] = useState<TasksSummary | null>(null)
   useEffect(() => {
     const load = async () => {
       try {
@@ -62,6 +73,17 @@ export default function HomePage() {
     void load()
     return habitsRepository.subscribe(() => { void load() })
   }, [])
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const enabled = await tasksRepository.isEnabled()
+        const tasks = enabled ? await tasksRepository.getAll() : []
+        setTasksSummary({ enabled, todo: tasks.filter((task) => task.status === 'todo').length, doing: tasks.filter((task) => task.status === 'doing').length })
+      } catch { setTasksSummary({ enabled: false, todo: 0, doing: 0 }) }
+    }
+    void load()
+    return tasksRepository.subscribe(() => { void load() })
+  }, [])
 
   return <PageShell>
     <header className="mb-10 pt-4 text-center md:pt-8 md:text-left">
@@ -69,6 +91,6 @@ export default function HomePage() {
       <h1 className="mb-3 text-3xl font-bold text-strong md:text-4xl">Hub de Ferramentas</h1>
       <p className="mx-auto max-w-2xl text-lg text-slate-400 md:mx-0">Centralize sua produtividade. Acesse seus aplicativos integrados em um único lugar.</p>
     </header>
-    <section aria-label="Ferramentas" className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">{toolRegistry.map((tool) => <ToolCard key={tool.id} tool={tool} habitSummary={habitSummary} />)}</section>
+    <section aria-label="Ferramentas" className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">{toolRegistry.map((tool) => <ToolCard key={tool.id} tool={tool} habitSummary={habitSummary} tasksSummary={tasksSummary} />)}</section>
   </PageShell>
 }

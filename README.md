@@ -21,3 +21,12 @@ IndexedDB é isolado por origem. `file://`, cada porta de `localhost`, deploy pr
 O projeto abre a base legada `HabitTrackerDB` sem elevar sua versão automaticamente quando ela contém hábitos. Os sete valores de `days` são exibidos como marcações legadas sem data. Para começar a registrar datas reais, use **Baixar backup e habilitar datas**; a ação baixa uma cópia antes de criar a store `habitCheckins` na versão nativa 2.
 
 As preferências de interface e a sessão ativa do Timer usam chaves locais versionadas no `localStorage`. Essa política evita elevar silenciosamente a versão de uma base legada apenas para trocar tema ou volume. Hábitos e check-ins continuam no IndexedDB e não são duplicados no `localStorage`.
+
+## Ferramentas disponíveis
+
+- Rastreador de Hábitos, incluindo marcações datadas após backup/migração.
+- Timer com relógio absoluto, persistência e associação opcional a uma tarefa.
+- Pomodoro automático com fases 25/5/15 configuráveis e pausa longa após quatro focos.
+- Kanban A Fazer/Fazendo/Concluído, com arraste no desktop e controles acessíveis de mover/reordenar.
+
+Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação antes de elevar `HabitTrackerDB` para a versão nativa 3 e criar a store `tasks`. A migração também cria `habitCheckins` quando ela ainda não existe e nunca converte `days[7]` em datas.

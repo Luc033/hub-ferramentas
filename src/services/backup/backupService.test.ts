@@ -10,3 +10,8 @@ test('aceita backup legado e mantém texto do usuário como texto', () => {
 test('rejeita registros com days fora do formato legado', () => {
   expect(() => parseBackup(JSON.stringify([{ id: '1', name: 'x', days: [true], createdAt: 1 }]))).toThrow('inválidos')
 })
+
+test('rejeita tarefas com status desconhecido', () => {
+  const data = { schemaVersion: 3, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [], tasks: [{ id: 'x', title: 'x', description: '', status: 'hack', position: 0, createdAt: 1, updatedAt: 1 }] } }
+  expect(() => parseBackup(JSON.stringify(data))).toThrow('tarefas')
+})
