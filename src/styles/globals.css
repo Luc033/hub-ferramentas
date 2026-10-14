@@ -1,0 +1,30 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import 'tailwindcss';
+@import './tokens.css';
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --animate-fade-in: fade-in 300ms ease-out both;
+  @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; background: var(--bg); }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+::selection { background: color-mix(in srgb, var(--brand) 45%, transparent); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(15, 23, 42, .5); }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.app-card { background: var(--surface); border: 1px solid color-mix(in srgb, var(--border) 85%, transparent); border-radius: 1.5rem; box-shadow: 0 12px 28px rgb(0 0 0 / .16); }
+.muted-panel { background: var(--surface-muted); border: 1px solid var(--border); }
+.text-muted { color: var(--text-muted); }
+.text-strong { color: var(--text-strong); }
+.timer-digits { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

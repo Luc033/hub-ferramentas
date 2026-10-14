@@ -1,0 +1,21 @@
+import { lazy, Suspense } from 'react'
+import { createBrowserRouter, Link, type RouteObject } from 'react-router'
+import { App } from './App'
+
+const HomePage = lazy(() => import('../features/home/HomePage'))
+const HabitsPage = lazy(() => import('../features/habits/HabitsPage'))
+const TimerPage = lazy(() => import('../features/timer/TimerPage'))
+
+const loading = <div className="grid min-h-screen place-items-center bg-[#0a0f1c] text-slate-400">Carregando…</div>
+
+export const appRoutes: RouteObject[] = [{
+  element: <App />,
+  children: [
+    { path: '/', element: <Suspense fallback={loading}><HomePage /></Suspense> },
+    { path: '/habits', element: <Suspense fallback={loading}><HabitsPage /></Suspense> },
+    { path: '/timer', element: <Suspense fallback={loading}><TimerPage /></Suspense> },
+    { path: '*', element: <main className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="mb-3 text-3xl font-bold text-white">Página não encontrada</h1><p className="mb-6 text-slate-400">Esta ferramenta ainda não está disponível.</p><Link to="/" className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white">Voltar ao Hub</Link></div></main> },
+  ],
+}]
+
+export const router = createBrowserRouter(appRoutes)

@@ -1,0 +1,19 @@
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0a0f1c;
+  --surface: #1e293b;
+  --surface-muted: #0f172a;
+  --border: #334155;
+  --text: #e2e8f0;
+  --text-strong: #ffffff;
+  --text-muted: #94a3b8;
+  --brand: #6366f1;
+  --brand-hover: #4f46e5;
+  --success: #10b981;
+  --timer: #22d3ee;
+  --focus: #fb7185;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --focus-ring: #818cf8;
+}
