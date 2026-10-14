@@ -23,3 +23,11 @@ test('cria, move e reabre uma tarefa sem perder os demais registros', async () =
   await tasksRepository.move({ ...first, status: 'done' }, 'todo')
   expect((await tasksRepository.getAll()).find((task) => task.id === first.id)?.completedAt).toBeUndefined()
 })
+
+test('registra somente metadados de focos concluídos sem concluir a tarefa', async () => {
+  const task = await tasksRepository.add('Preparar relatório')
+  expect(await tasksRepository.recordFocus(task.id, 25)).toBe(true)
+  expect(await tasksRepository.recordFocus(task.id, 15)).toBe(true)
+  expect((await tasksRepository.getAll()).find((item) => item.id === task.id)).toMatchObject({ status: 'todo', pomodoroCount: 2, focusMinutes: 40 })
+  expect(await tasksRepository.recordFocus('removida', 25)).toBe(false)
+})

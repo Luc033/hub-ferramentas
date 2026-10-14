@@ -9,10 +9,11 @@ export interface PomodoroState {
   completedInCycle: number
   completedByDate: Record<string, number>
   transitionMessage: string | null
+  taskRecordError: string | null
 }
 
 const STORAGE_KEY = 'hub.pomodoro.v1'
-const INITIAL_STATE: PomodoroState = { phase: 'focus', completedInCycle: 0, completedByDate: {}, transitionMessage: null }
+const INITIAL_STATE: PomodoroState = { phase: 'focus', completedInCycle: 0, completedByDate: {}, transitionMessage: null, taskRecordError: null }
 
 const phaseMinutes = (phase: PomodoroPhase) => {
   const settings = readStoredSettings()
@@ -47,6 +48,7 @@ class PomodoroService {
 
   pause() { if (clockService.getSnapshot().mode === 'pomodoro') clockService.pause() }
   restart() { this.prepare(true) }
+  dismissTaskRecordError() { if (this.state.taskRecordError) { this.state = { ...this.state, taskRecordError: null }; this.commit() } }
 
   skipBreak() {
     if (this.state.phase === 'focus') return
@@ -78,13 +80,14 @@ class PomodoroService {
       completedByDate[today] = (completedByDate[today] ?? 0) + 1
       next = completedInCycle >= 4 ? 'long-break' : 'short-break'
       message = next === 'long-break' ? 'Quatro focos concluídos. Hora da pausa longa.' : 'Foco concluído. Hora de uma pausa curta.'
+      if (clock.taskId) this.recordTaskFocus(clock.taskId, clock.durationMs / 60_000)
     } else {
       next = 'focus'
       message = current === 'long-break' ? 'Pausa longa concluída. Um novo ciclo pode começar.' : 'Pausa concluída. Hora de focar.'
       if (current === 'long-break') completedInCycle = 0
     }
 
-    this.state = { phase: next, completedInCycle, completedByDate, transitionMessage: message }
+    this.state = { phase: next, completedInCycle, completedByDate, transitionMessage: message, taskRecordError: null }
     this.commit()
     this.transitionTimer = setTimeout(() => {
       this.transitionTimer = null
@@ -98,6 +101,12 @@ class PomodoroService {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state))
     this.listeners.forEach((listener) => listener())
   }
+  private recordTaskFocus(taskId: string, minutes: number) {
+    void import('../../services/db/tasksRepository').then(({ tasksRepository }) => tasksRepository.recordFocus(taskId, minutes)).catch((reason) => {
+      this.state = { ...this.state, taskRecordError: reason instanceof Error ? reason.message : 'Não foi possível registrar o foco na tarefa.' }
+      this.commit()
+    })
+  }
   private restore(): PomodoroState {
     try {
       const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '') as Partial<PomodoroState>
@@ -106,6 +115,7 @@ class PomodoroService {
         completedInCycle: Number.isInteger(value.completedInCycle) ? Math.min(4, Math.max(0, value.completedInCycle!)) : 0,
         completedByDate: value.completedByDate && typeof value.completedByDate === 'object' ? value.completedByDate : {},
         transitionMessage: null,
+        taskRecordError: null,
       }
     } catch { return { ...INITIAL_STATE } }
   }

@@ -50,4 +50,15 @@ export const tasksRepository = {
     const oldPosition = task.position
     await Promise.all([this.update({ ...task, position: swap.position }), this.update({ ...swap, position: oldPosition })])
   },
+  async recordFocus(id: string, minutes: number) {
+    if (!Number.isFinite(minutes) || minutes <= 0) throw new Error('A duração do foco é inválida.')
+    const db = await openDatabase()
+    if (!db.objectStoreNames.contains(TASKS_STORE)) return false
+    const transaction = db.transaction(TASKS_STORE, 'readwrite')
+    const store = transaction.objectStore(TASKS_STORE)
+    const task = await requestResult(store.get(id)) as Task | undefined
+    if (!task) { await transactionDone(transaction); return false }
+    store.put({ ...task, pomodoroCount: (task.pomodoroCount ?? 0) + 1, focusMinutes: (task.focusMinutes ?? 0) + Math.round(minutes), updatedAt: Date.now() })
+    await transactionDone(transaction); emitChange(); return true
+  },
 }

@@ -9,4 +9,6 @@ export interface Task {
   createdAt: number
   updatedAt: number
   completedAt?: number
+  pomodoroCount?: number
+  focusMinutes?: number
 }

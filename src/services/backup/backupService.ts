@@ -30,7 +30,7 @@ const isCheckin = (value: unknown): value is HabitCheckin => {
 const isTask = (value: unknown): value is Task => {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<Task>
-  return typeof item.id === 'string' && typeof item.title === 'string' && typeof item.description === 'string' && ['todo', 'doing', 'done'].includes(String(item.status)) && typeof item.position === 'number' && typeof item.createdAt === 'number' && typeof item.updatedAt === 'number'
+  return typeof item.id === 'string' && typeof item.title === 'string' && typeof item.description === 'string' && ['todo', 'doing', 'done'].includes(String(item.status)) && typeof item.position === 'number' && typeof item.createdAt === 'number' && typeof item.updatedAt === 'number' && (item.pomodoroCount === undefined || Number.isInteger(item.pomodoroCount) && item.pomodoroCount >= 0) && (item.focusMinutes === undefined || Number.isFinite(item.focusMinutes) && item.focusMinutes >= 0)
 }
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const isNote = (value: unknown): value is Note => Boolean(value && typeof value === 'object' && typeof (value as Note).id === 'string' && typeof (value as Note).title === 'string' && typeof (value as Note).content === 'string' && isFiniteNumber((value as Note).createdAt) && isFiniteNumber((value as Note).updatedAt))

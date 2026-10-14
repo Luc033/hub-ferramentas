@@ -16,6 +16,13 @@ test('rejeita tarefas com status desconhecido', () => {
   expect(() => parseBackup(JSON.stringify(data))).toThrow('tarefas')
 })
 
+test('valida metadados opcionais de foco das tarefas', () => {
+  const task = { id: 'x', title: 'x', description: '', status: 'todo', position: 0, createdAt: 1, updatedAt: 1, pomodoroCount: 2, focusMinutes: 50 }
+  const data = { schemaVersion: 5, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [], tasks: [task] } }
+  expect(parseBackup(JSON.stringify(data)).records.tasks).toEqual([task])
+  expect(() => parseBackup(JSON.stringify({ ...data, records: { habits: [], tasks: [{ ...task, pomodoroCount: -1 }] } }))).toThrow('tarefas')
+})
+
 test('valida arrays e coordenadas dos dados criativos', () => {
   const metadata = { schemaVersion: 4, exportedAt: new Date().toISOString(), appVersion: 'test' }
   expect(() => parseBackup(JSON.stringify({ ...metadata, records: { habits: [], notes: { id: 'x' } } }))).toThrow('notas')
