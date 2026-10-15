@@ -52,7 +52,7 @@ export default function TasksPage() {
     event.preventDefault(); const cleanTitle = title.trim(); const cleanDescription = description.trim()
     if (!cleanTitle) { setError('O título da tarefa é obrigatório.'); return }
     try {
-      if (editing) await tasksRepository.update({ ...editing, title: cleanTitle, description: cleanDescription })
+      if (editing) { await tasksRepository.update({ ...editing, title: cleanTitle, description: cleanDescription }); clockService.renameAssociatedTask(editing.id, cleanTitle) }
       else await tasksRepository.add(cleanTitle, cleanDescription)
       setTitle(''); setDescription(''); setEditing(null); setError('')
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível salvar a tarefa.') }
@@ -65,6 +65,11 @@ export default function TasksPage() {
     clockService.associateTask(mode, task.id, task.title)
     navigate(mode === 'timer' ? '/timer' : '/pomodoro')
   }
+  const deleteTask = async () => {
+    if (!deleteTarget) return
+    try { await tasksRepository.remove(deleteTarget.id); clockService.clearTask(deleteTarget.id); setDeleteTarget(null); setError('') }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível excluir a tarefa.') }
+  }
 
   return <PageShell>
     <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-400"><ListTodo size={17} />Kanban</span>} />
@@ -75,6 +80,6 @@ export default function TasksPage() {
       <section className="app-card mb-6 p-5"><form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_2fr_auto]"><label className="text-sm text-slate-300">Título<input maxLength={100} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Próxima tarefa" className="mt-1 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-white" /></label><label className="text-sm text-slate-300">Descrição opcional<input maxLength={2000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Detalhes em texto simples" className="mt-1 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-white" /></label><div className="flex items-end gap-2"><Button type="submit"><Plus size={17} />{editing ? 'Salvar' : 'Adicionar'}</Button>{editing && <Button type="button" variant="secondary" onClick={() => { setEditing(null); setTitle(''); setDescription('') }}>Cancelar</Button>}</div></form></section>
       <section className="grid gap-5 lg:grid-cols-3">{columns.map((column) => { const columnTasks = tasks.filter((task) => task.status === column.status); return <div key={column.status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => drop(event, column.status)} className="app-card min-h-[420px] p-4"><header className="mb-4 flex items-center justify-between"><h2 className={`font-bold ${column.accent}`}>{column.title}</h2><span className="rounded-full bg-slate-700 px-2.5 py-1 text-xs font-bold text-slate-300">{columnTasks.length}</span></header><div className="space-y-3">{columnTasks.map((task) => <TaskCard key={task.id} task={task} onDragStart={dragStart} onStart={startWithTask} onEdit={(item) => { setEditing(item); setTitle(item.title); setDescription(item.description); window.scrollTo({ top: 0, behavior: 'smooth' }) }} onDelete={setDeleteTarget} onMove={(item, status) => { void tasksRepository.move(item, status) }} onReorder={(item, direction) => { void tasksRepository.reorder(item, direction) }} />)}{!columnTasks.length && <p className="rounded-xl border border-dashed border-slate-700 p-6 text-center text-sm text-slate-500">Nenhuma tarefa</p>}</div></div> })}</section>
     </> : <p className="text-center text-slate-400">Carregando armazenamento local…</p>}
-    <ConfirmModal open={Boolean(deleteTarget)} title="Excluir tarefa" confirmLabel="Excluir tarefa" onClose={() => setDeleteTarget(null)} onConfirm={() => { if (deleteTarget) void tasksRepository.remove(deleteTarget.id).then(() => setDeleteTarget(null)) }}><p>Excluir <strong>{deleteTarget?.title}</strong>? Esta ação não pode ser desfeita.</p></ConfirmModal>
+    <ConfirmModal open={Boolean(deleteTarget)} title="Excluir tarefa" confirmLabel="Excluir tarefa" onClose={() => setDeleteTarget(null)} onConfirm={() => { void deleteTask() }}><p>Excluir <strong>{deleteTarget?.title}</strong>? A contagem ativa continuará, mas será desvinculada desta tarefa.</p></ConfirmModal>
   </PageShell>
 }

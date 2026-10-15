@@ -73,7 +73,13 @@ export class ClockService {
     this.state = { ...EMPTY_STATE, mode, taskId, taskTitle }
     this.commit()
   }
-  clearTask() {
+  renameAssociatedTask(taskId: string, taskTitle: string) {
+    if (this.state.taskId !== taskId) return
+    this.state = { ...this.state, taskTitle }
+    this.commit()
+  }
+  clearTask(taskId?: string) {
+    if (taskId && this.state.taskId !== taskId) return
     this.state = { ...this.state, taskId: null, taskTitle: null }
     this.commit()
   }

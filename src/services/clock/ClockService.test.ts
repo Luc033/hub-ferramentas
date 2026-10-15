@@ -38,6 +38,20 @@ test('associa uma tarefa sem presumir duração', () => {
   clock.destroy()
 })
 
+test('mantém o vínculo coerente quando a tarefa é renomeada ou excluída', () => {
+  const clock = new ClockService({ storage: null })
+  clock.associateTask('timer', 'task-1', 'Título antigo')
+  clock.setDuration(60_000, 'timer')
+  clock.start()
+  clock.renameAssociatedTask('task-1', 'Título novo')
+  expect(clock.getSnapshot()).toMatchObject({ status: 'running', taskId: 'task-1', taskTitle: 'Título novo' })
+  clock.clearTask('outra-tarefa')
+  expect(clock.getSnapshot().taskId).toBe('task-1')
+  clock.clearTask('task-1')
+  expect(clock.getSnapshot()).toMatchObject({ status: 'running', taskId: null, taskTitle: null })
+  clock.destroy()
+})
+
 test('pausa e retoma a partir do saldo real', () => {
   let now = 0
   const clock = new ClockService({ now: () => now, storage: null })
