@@ -8,7 +8,7 @@ import { useClock } from '../../services/clock/useClock'
 import { formatDuration } from '../../services/clock/ClockService'
 import { clockService } from '../../services/clock/ClockService'
 import { audioService } from '../../services/audio/audioService'
-import { toLocalDateKey } from '../../lib/date'
+import { useBrowserRefresh } from '../../lib/useBrowserRefresh'
 import { usePomodoro } from '../pomodoro/usePomodoro'
 import { pomodoroService } from '../pomodoro/pomodoroService'
 import { tasksRepository } from '../../services/db/tasksRepository'
@@ -70,25 +70,25 @@ export default function HomePage() {
   const [habitSummary, setHabitSummary] = useState<HabitSummary | null>(null)
   const [tasksSummary, setTasksSummary] = useState<TasksSummary | null>(null)
   const [notesSummary, setNotesSummary] = useState<NotesSummary | null>(null)
+  const { todayKey, revision } = useBrowserRefresh()
   useEffect(() => {
     const load = async () => {
       try {
         const info = await habitsRepository.initialize()
         const habits = await habitsRepository.getAll()
         if (!info.supportsDatedCheckins) { setHabitSummary({ total: habits.length, completedToday: null }); return }
-        const today = toLocalDateKey()
-        const checkins = await habitsRepository.getCheckins(today, today)
+        const checkins = await habitsRepository.getCheckins(todayKey, todayKey)
         const habitIds = new Set(habits.map((habit) => habit.id))
         setHabitSummary({ total: habits.length, completedToday: checkins.filter((checkin) => habitIds.has(checkin.habitId)).length })
       } catch { setHabitSummary({ total: 0, completedToday: null }) }
     }
     void load()
     return habitsRepository.subscribe(() => { void load() })
-  }, [])
+  }, [todayKey, revision])
   useEffect(() => {
     const load = async () => { try { const enabled = await notesRepository.isEnabled(); if (!enabled) { setNotesSummary({ enabled, notes: 0, nodes: 0 }); return } const [notes, nodes] = await Promise.all([notesRepository.getNotes(), notesRepository.getNodes()]); setNotesSummary({ enabled, notes: notes.length, nodes: nodes.length }) } catch { setNotesSummary({ enabled: false, notes: 0, nodes: 0 }) } }
     void load(); return notesRepository.subscribe(() => { void load() })
-  }, [])
+  }, [revision])
   useEffect(() => {
     const load = async () => {
       try {
@@ -99,7 +99,7 @@ export default function HomePage() {
     }
     void load()
     return tasksRepository.subscribe(() => { void load() })
-  }, [])
+  }, [revision])
 
   return <PageShell>
     <header className="mb-10 pt-4 text-center md:pt-8 md:text-left">

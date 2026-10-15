@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
 import { Button } from '../../components/ui/Button'
 import { ConfirmModal } from '../../components/ui/Modal'
-import { DAYS, toLocalDateKey, weekKeysForOffset, weekRangeLabel } from '../../lib/date'
+import { DAYS, fromLocalDateKey, weekKeysForOffset, weekRangeLabel } from '../../lib/date'
+import { useBrowserRefresh } from '../../lib/useBrowserRefresh'
 import { audioService } from '../../services/audio/audioService'
 import { downloadBackup, importBackup, parseBackup, type ImportMode } from '../../services/backup/backupService'
 import { habitsRepository } from '../../services/db/habitsRepository'
@@ -67,8 +68,8 @@ export default function HabitsPage() {
   const [importMode, setImportMode] = useState<ImportMode>('merge')
   const [loading, setLoading] = useState(true)
   const [weekOffset, setWeekOffset] = useState(0)
-  const todayKey = toLocalDateKey()
-  const weekKeys = useMemo(() => weekKeysForOffset(weekOffset), [weekOffset])
+  const { todayKey, revision } = useBrowserRefresh()
+  const weekKeys = useMemo(() => weekKeysForOffset(weekOffset, fromLocalDateKey(todayKey)), [weekOffset, todayKey])
 
   const load = useCallback(async () => {
     try {
@@ -77,7 +78,7 @@ export default function HabitsPage() {
       setInfo(dbInfo); setHabits(allHabits); setCheckins(allCheckins); setHistory(allHistory); setError('')
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível salvar neste navegador.') }
     finally { setLoading(false) }
-  }, [weekKeys])
+  }, [weekKeys, revision])
 
   useEffect(() => { void load(); return habitsRepository.subscribe(() => { void load() }) }, [load])
   const totals = useMemo(() => info?.supportsDatedCheckins ? datedTotals(habits, checkins, weekKeys, todayKey) : DAYS.map((_, index) => habits.filter((habit) => habit.days[index]).length), [info, habits, checkins, weekKeys, todayKey])
