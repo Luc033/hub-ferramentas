@@ -1,9 +1,11 @@
 import type { MindMap, MindMapAsset, MindMapConnection, MindMapDocument, MindMapSummary, MindMapTopic, MindMapViewport } from '../../features/mind-maps/types'
-import { normalizeTopicOrders, validateMindMapDocument } from '../../features/mind-maps/tree'
+import { addTopic, normalizeTopicOrders, validateMindMapDocument } from '../../features/mind-maps/tree'
 import { MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, openDatabase, requestResult, transactionDone, upgradeToMindMapSchema, upgradeToMindMapMediaSchema } from './indexedDb'
 
 const EVENT = 'mind-maps:changed'
-const emit = () => window.dispatchEvent(new Event(EVENT))
+const instanceId = crypto.randomUUID()
+const changesChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('hub-mind-maps-v1')
+const emit = (mapId?: string) => { window.dispatchEvent(new Event(EVENT)); if (mapId) changesChannel?.postMessage({ type: 'changed', mapId, instanceId, at: Date.now() }) }
 const cleanName = (name?: string) => {
   const value = name?.trim() || 'Mapa sem título'
   if (value.length > 100) throw new Error('Use no máximo 100 caracteres no nome do mapa.')
@@ -24,6 +26,7 @@ export const mindMapsRepository = {
   enable: upgradeToMindMapSchema,
   enableAdvanced: upgradeToMindMapMediaSchema,
   subscribe(listener: () => void) { window.addEventListener(EVENT, listener); return () => window.removeEventListener(EVENT, listener) },
+  subscribeExternal(mapId: string, listener: () => void) { if (!changesChannel) return () => undefined; const receive = (event: MessageEvent) => { const message = event.data as { type?: string; mapId?: string; instanceId?: string }; if (message.type === 'changed' && message.mapId === mapId && message.instanceId !== instanceId) listener() }; changesChannel.addEventListener('message', receive); return () => changesChannel.removeEventListener('message', receive) },
   async list(): Promise<MindMapSummary[]> {
     const db = await openDatabase(); if (!db.objectStoreNames.contains(MIND_MAPS_STORE)) return []
     const tx = db.transaction([MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE], 'readonly')
@@ -36,7 +39,7 @@ export const mindMapsRepository = {
     const map: MindMap = { id: mapId, schemaVersion: 1, name: cleanName(name), rootId, layout: 'radial', theme: 'classic', viewport: { panX: 0, panY: 0, zoom: 1 }, createdAt: now, updatedAt: now }
     const root: MindMapTopic = { id: rootId, mapId, parentId: null, order: 0, text: map.name, collapsed: false, createdAt: now, updatedAt: now }
     const db = await openDatabase(); const tx = db.transaction([MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE], 'readwrite')
-    tx.objectStore(MIND_MAPS_STORE).add(map); tx.objectStore(MIND_MAP_TOPICS_STORE).add(root); await transactionDone(tx); emit(); return { map, topics: [root], connections: [] }
+    tx.objectStore(MIND_MAPS_STORE).add(map); tx.objectStore(MIND_MAP_TOPICS_STORE).add(root); await transactionDone(tx); emit(map.id); return { map, topics: [root], connections: [] }
   },
   async get(id: string): Promise<MindMapDocument | null> {
     const db = await openDatabase(); const advanced = hasAdvancedStores(db); const tx = db.transaction([MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, ...(advanced ? [MIND_MAP_CONNECTIONS_STORE] : [])], 'readonly')
@@ -59,15 +62,15 @@ export const mindMapsRepository = {
       const store = tx.objectStore(MIND_MAP_CONNECTIONS_STORE); const old = await requestResult(store.index('mapId').getAll(map.id)) as MindMapConnection[]; old.forEach(({ id }) => store.delete(id)); connections.forEach((item) => store.put(item))
       const assetStore = tx.objectStore(MIND_MAP_ASSETS_STORE); const assets = await requestResult(assetStore.index('mapId').getAll(map.id)) as MindMapAsset[]; const used = new Set(topics.map(({ imageAssetId }) => imageAssetId).filter(Boolean)); assets.filter(({ id }) => !used.has(id)).forEach(({ id }) => assetStore.delete(id))
     }
-    await transactionDone(tx); emit(); return { map, topics, connections }
+    await transactionDone(tx); emit(map.id); return { map, topics, connections }
   },
   async saveViewport(id: string, viewport: MindMapViewport) {
     const db = await openDatabase(); const tx = db.transaction(MIND_MAPS_STORE, 'readwrite'); const store = tx.objectStore(MIND_MAPS_STORE); const map = await requestResult(store.get(id)) as MindMap | undefined
-    if (!map) { tx.abort(); throw new Error('Este mapa não existe mais.') }; store.put({ ...map, viewport, updatedAt: Date.now() }); await transactionDone(tx); emit()
+    if (!map) { tx.abort(); throw new Error('Este mapa não existe mais.') }; store.put({ ...map, viewport, updatedAt: Date.now() }); await transactionDone(tx); emit(id)
   },
   async rename(id: string, name: string) {
     const db = await openDatabase(); const tx = db.transaction(MIND_MAPS_STORE, 'readwrite'); const store = tx.objectStore(MIND_MAPS_STORE); const map = await requestResult(store.get(id)) as MindMap | undefined
-    if (!map) { tx.abort(); throw new Error('Este mapa não existe mais.') }; store.put({ ...map, name: cleanName(name), updatedAt: Date.now() }); await transactionDone(tx); emit()
+    if (!map) { tx.abort(); throw new Error('Este mapa não existe mais.') }; store.put({ ...map, name: cleanName(name), updatedAt: Date.now() }); await transactionDone(tx); emit(id)
   },
   async saveAsset(mapId: string, file: File): Promise<MindMapAsset> {
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('Use uma imagem PNG, JPEG ou WebP.')
@@ -79,6 +82,20 @@ export const mindMapsRepository = {
     tx.objectStore(MIND_MAP_ASSETS_STORE).add(asset); await transactionDone(tx); return asset
   },
   async getAssets(mapId: string): Promise<MindMapAsset[]> { const db = await openDatabase(); if (!hasAdvancedStores(db)) return []; const tx = db.transaction(MIND_MAP_ASSETS_STORE, 'readonly'); const assets = await requestResult(tx.objectStore(MIND_MAP_ASSETS_STORE).index('mapId').getAll(mapId)) as MindMapAsset[]; await transactionDone(tx); return assets },
+  async importDocument(document: MindMapDocument, assets: MindMapAsset[]) {
+    const topics = normalizeTopicOrders(document.topics); validateMindMapDocument(document.map, topics); const connections = sanitizeConnections({ ...document, topics }); const db = await openDatabase(); const advanced = hasAdvancedStores(db)
+    if ((connections.length || assets.length) && !advanced) throw new Error('Habilite os recursos visuais antes de importar este mapa.')
+    if (assets.some((asset) => asset.mapId !== document.map.id || asset.size > 5 * 1024 * 1024) || topics.some((topic) => topic.imageAssetId && !assets.some((asset) => asset.id === topic.imageAssetId))) throw new Error('As imagens importadas possuem referências inválidas.')
+    const stores = [MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, ...(advanced ? [MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE] : [])]; const tx = db.transaction(stores, 'readwrite'); const mapStore = tx.objectStore(MIND_MAPS_STORE)
+    if (await requestResult(mapStore.get(document.map.id))) { tx.abort(); throw new Error('Já existe um mapa com este identificador.') }
+    mapStore.add(document.map); topics.forEach((topic) => tx.objectStore(MIND_MAP_TOPICS_STORE).add(topic)); if (advanced) { connections.forEach((item) => tx.objectStore(MIND_MAP_CONNECTIONS_STORE).add(item)); assets.forEach((asset) => tx.objectStore(MIND_MAP_ASSETS_STORE).add(asset)) }
+    await transactionDone(tx); emit(document.map.id); return { map: document.map, topics, connections }
+  },
+  async addTopicFromNote(mapId: string, title: string, content: string) {
+    const document = await this.get(mapId); if (!document) throw new Error('O mapa escolhido não existe mais.')
+    const result = addTopic(document.topics, document.map.rootId, 'child'); const text = (title.trim() || content.trim().split(/\r?\n/)[0] || 'Nota sem título').slice(0, 500); const now = Date.now()
+    return this.save({ ...document, topics: result.topics.map((topic) => topic.id === result.topic.id ? { ...topic, text, note: content.slice(0, 10000), updatedAt: now } : topic) })
+  },
   async duplicate(id: string): Promise<MindMapDocument> {
     const source = await this.get(id); if (!source) throw new Error('Este mapa não existe mais.')
     const now = Date.now(); const mapId = crypto.randomUUID(); const topicIds = new Map(source.topics.map(({ id }) => [id, crypto.randomUUID()])); const db = await openDatabase(); const advanced = hasAdvancedStores(db); const sourceAssets = advanced ? await this.getAssets(id) : []; const assetIds = new Map(sourceAssets.map(({ id }) => [id, crypto.randomUUID()]))
@@ -86,11 +103,11 @@ export const mindMapsRepository = {
     const suffix = ' (cópia)'; const map: MindMap = { ...source.map, id: mapId, rootId: topicIds.get(source.map.rootId)!, name: cleanName(`${source.map.name.slice(0, 100 - suffix.length)}${suffix}`), createdAt: now, updatedAt: now }
     const connections = (source.connections ?? []).map((item) => ({ ...item, id: crypto.randomUUID(), mapId, sourceId: topicIds.get(item.sourceId)!, targetId: topicIds.get(item.targetId)!, createdAt: now, updatedAt: now }))
     validateMindMapDocument(map, topics); const tx = db.transaction([MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, ...(advanced ? [MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE] : [])], 'readwrite'); tx.objectStore(MIND_MAPS_STORE).add(map); topics.forEach((topic) => tx.objectStore(MIND_MAP_TOPICS_STORE).add(topic))
-    if (advanced) { connections.forEach((item) => tx.objectStore(MIND_MAP_CONNECTIONS_STORE).add(item)); sourceAssets.forEach((asset) => tx.objectStore(MIND_MAP_ASSETS_STORE).add({ ...asset, id: assetIds.get(asset.id)!, mapId })) }; await transactionDone(tx); emit(); return { map, topics, connections }
+    if (advanced) { connections.forEach((item) => tx.objectStore(MIND_MAP_CONNECTIONS_STORE).add(item)); sourceAssets.forEach((asset) => tx.objectStore(MIND_MAP_ASSETS_STORE).add({ ...asset, id: assetIds.get(asset.id)!, mapId })) }; await transactionDone(tx); emit(map.id); return { map, topics, connections }
   },
   async remove(id: string) {
     const db = await openDatabase(); const advanced = hasAdvancedStores(db); const stores = [MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, ...(advanced ? [MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE] : [])]; const tx = db.transaction(stores, 'readwrite')
     for (const name of stores.slice(1)) { const store = tx.objectStore(name); const records = await requestResult(store.index('mapId').getAll(id)) as Array<{ id: string }>; records.forEach(({ id: recordId }) => store.delete(recordId)) }
-    tx.objectStore(MIND_MAPS_STORE).delete(id); await transactionDone(tx); emit()
+    tx.objectStore(MIND_MAPS_STORE).delete(id); await transactionDone(tx); emit(id)
   },
 }

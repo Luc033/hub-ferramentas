@@ -35,3 +35,8 @@ test('oferece layouts à direita e organograma com eixos consistentes', () => {
   const right = calculateRadialLayout(topics, 'root', 'right'); expect(right.topics.get('a')!.x).toBeGreaterThan(right.topics.get('root')!.x); expect(right.topics.get('a1')!.x).toBeGreaterThan(right.topics.get('a')!.x)
   const org = calculateRadialLayout(topics, 'root', 'orgchart'); expect(org.topics.get('a')!.y).toBeGreaterThan(org.topics.get('root')!.y); expect(org.topics.get('a1')!.y).toBeGreaterThan(org.topics.get('a')!.y)
 })
+
+test('calcula mapa com 150 tópicos sem perder nenhum nó', () => {
+  const topics = [topic('root', null, 0), ...Array.from({ length: 149 }, (_, index) => topic(`node-${index}`, index < 12 ? 'root' : `node-${Math.floor((index - 12) / 3)}`, index < 12 ? index : index % 3))]
+  const layout = calculateRadialLayout(topics, 'root', 'right'); expect(layout.topics.size).toBe(150); expect(layout.width).toBeGreaterThan(0); expect(layout.height).toBeGreaterThan(0)
+})

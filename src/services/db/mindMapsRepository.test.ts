@@ -47,3 +47,9 @@ test('persiste conexões e imagens na v7 e duplica seus ids sem alterar a hierar
   const saved = await mindMapsRepository.get(original.map.id); expect(saved).toMatchObject({ map: { layout: 'right', theme: 'colorful' }, connections: [expect.objectContaining({ label: 'depende', directed: true })] }); expect(await mindMapsRepository.getAssets(original.map.id)).toHaveLength(1)
   const copy = await mindMapsRepository.duplicate(original.map.id); expect(copy.connections?.[0].id).not.toBe('connection'); expect(copy.connections?.[0].sourceId).toBe(copy.map.rootId); expect(await mindMapsRepository.getAssets(copy.map.id)).toHaveLength(1)
 })
+
+test('importa documento atomicamente e cria tópico a partir de nota sem alterar a origem', async () => {
+  const now = Date.now(); const imported = { map: { id: 'imported', schemaVersion: 1 as const, name: 'Importado', rootId: 'imported-root', layout: 'radial' as const, viewport: { panX: 0, panY: 0, zoom: 1 }, createdAt: now, updatedAt: now }, topics: [{ id: 'imported-root', mapId: 'imported', parentId: null, order: 0, text: 'Raiz', collapsed: false, createdAt: now, updatedAt: now }], connections: [] }
+  await mindMapsRepository.importDocument(imported, []); await mindMapsRepository.addTopicFromNote('imported', 'Minha nota', 'Conteúdo preservado')
+  const saved = await mindMapsRepository.get('imported'); expect(saved?.topics).toHaveLength(2); expect(saved?.topics).toContainEqual(expect.objectContaining({ parentId: 'imported-root', text: 'Minha nota', note: 'Conteúdo preservado' }))
+})

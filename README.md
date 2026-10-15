@@ -37,6 +37,7 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Editor hierárquico com raiz única, filhos e irmãos, edição inline, recolhimento, exclusão com desfazer, layout radial, pan, zoom, enquadramento e autosave transacional.
 - Interações MM-2 com reparent e reordenação por Pointer Events, alternativa acessível “Mover para”, posições manuais, tópicos independentes, seleção múltipla, busca, duplicação e clipboard de ramificações.
 - Recursos MM-3 para mapas mentais: layouts radial, à direita, organograma e manual; temas e estilos por tópico; ícones, notas em texto simples, links seguros e imagens locais; conexões transversais rotuladas; Outline e modo de foco.
+- Recursos MM-4 para mapas mentais: arquivo JSON nativo versionado com importação como novo mapa, SVG autocontido, PNG local, exportação de recuperação, aviso de edição concorrente entre abas e cópia de uma Nota para um mapa escolhido.
 - Quadro livre legado com nós, conexões, arraste, pan, zoom e histórico de sessão, preservado separadamente.
 - Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O catálogo só exibe URLs aprovadas pelo oEmbed em tempo de execução, e o miniplayer global mantém a reprodução durante a navegação interna.
 
@@ -44,4 +45,4 @@ Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação 
 
 Os sons precisam de uma interação do usuário para iniciar, conforme as regras de reprodução dos navegadores. Eles não continuam com o navegador fechado. Rádio e playlists dependem de conexão, disponibilidade regional e regras dos provedores. Playlists adicionadas ficam na store `focusPlaylists` do IndexedDB nativo v5; nenhuma faixa é extraída, baixada ou enviada a um backend.
 
-As próximas etapas do editor de mapas reservam exportações próprias em JSON/PNG/SVG, histórico persistente e robustez multiaba. Esses controles não aparecem como ações falsas.
+O formato `.hubmap.json` valida limites, árvore, ciclos, relações e imagens antes de gravar. A importação sempre regenera IDs e não sobrescreve mapas existentes. SVG e PNG são produzidos no navegador; dimensões extremas podem ser recusadas pelos limites de memória e canvas do dispositivo. A concorrência entre abas é sinalizada, pausa novas gravações locais e oferece recarregar ou exportar a cópia em memória; não há mesclagem colaborativa.

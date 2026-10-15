@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { vi } from 'vitest'
 import { mindMapsRepository } from '../../services/db/mindMapsRepository'
@@ -56,4 +56,23 @@ test('reordena por controle acessível sem depender de arraste', async () => {
   fireEvent.click(screen.getByRole('button', { name: /Mover para/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Abaixo' }))
   await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ id: 'a', order: 1 }), expect.objectContaining({ id: 'b', order: 0 })]) })))
+})
+
+test('pausa gravações ao detectar alteração do mesmo mapa em outra aba', async () => {
+  let notifyExternal!: () => void
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document)
+  const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value)
+  vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  vi.spyOn(mindMapsRepository, 'subscribeExternal').mockImplementation((_mapId, listener) => { notifyExternal = listener; return () => undefined })
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  const canvas = await screen.findByLabelText('Canvas do mapa mental'); act(() => notifyExternal())
+  expect(screen.getByText(/alterado em outra aba/)).toBeInTheDocument(); fireEvent.keyDown(canvas, { key: 'Tab' })
+  await screen.findByText(/Recarregue antes de continuar/); expect(save).not.toHaveBeenCalled()
+})
+
+test('não mostra Salvo após quota excedida e oferece exportação de recuperação', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); vi.spyOn(mindMapsRepository, 'save').mockRejectedValue(new DOMException('Cheio', 'QuotaExceededError')); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.keyDown(await screen.findByLabelText('Canvas do mapa mental'), { key: 'Tab' })
+  expect(await screen.findByText(/armazenamento local está cheio/)).toBeInTheDocument(); expect(screen.getByRole('button', { name: 'Exportar recuperação' })).toBeInTheDocument(); expect(screen.getByText('Falha ao salvar')).toBeInTheDocument()
 })

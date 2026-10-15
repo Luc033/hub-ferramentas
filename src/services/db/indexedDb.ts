@@ -39,6 +39,7 @@ function configureConnection(db: IDBDatabase) {
   db.onversionchange = () => {
     db.close()
     if (connection === db) connection = null
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('database:versionchange'))
   }
   return db
 }
