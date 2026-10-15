@@ -1,7 +1,7 @@
 import { Bell, BellOff, DatabaseBackup, Download, Moon, Settings2, Sun, Upload, Volume2, VolumeX, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useSettings } from '../../app/providers/SettingsProvider'
-import type { ImportMode } from '../../services/backup/backupService'
+import type { HubBackup, ImportMode } from '../../services/backup/backupService'
 import { notificationsService } from '../../services/notifications/notificationsService'
 import { Button } from '../ui/Button'
 
@@ -18,6 +18,7 @@ export function SettingsPanel() {
   const [importMode, setImportMode] = useState<ImportMode>('merge')
   const [backupStatus, setBackupStatus] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
   const [backupBusy, setBackupBusy] = useState(false)
+  const [pendingImport, setPendingImport] = useState<{ fileName: string; backup: HubBackup } | null>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const { settings, updateSettings } = useSettings()
 
@@ -47,22 +48,36 @@ export function SettingsPanel() {
     } finally { setBackupBusy(false) }
   }
 
-  const importData = async (event: ChangeEvent<HTMLInputElement>) => {
+  const selectImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
+    if (file.size > 20 * 1024 * 1024) { setBackupStatus({ kind: 'error', message: 'O arquivo excede o limite de 20 MB.' }); setPendingImport(null); return }
     setBackupBusy(true); setBackupStatus(null)
     try {
-      const { downloadBackup, importBackup, parseBackup } = await import('../../services/backup/backupService')
+      const { parseBackup } = await import('../../services/backup/backupService')
       const backup = parseBackup(await file.text())
+      setPendingImport({ fileName: file.name, backup })
+    } catch (reason) {
+      setPendingImport(null)
+      setBackupStatus({ kind: 'error', message: reason instanceof Error ? reason.message : 'Não foi possível ler o backup.' })
+    } finally { setBackupBusy(false) }
+  }
+
+  const confirmImport = async () => {
+    if (!pendingImport) return
+    setBackupBusy(true); setBackupStatus(null)
+    try {
+      const { downloadBackup, importBackup } = await import('../../services/backup/backupService')
       if (importMode === 'replace') {
         if (!window.confirm('Substituir removerá os dados atuais das ferramentas habilitadas. Deseja baixar um backup de segurança e continuar?')) return
         await downloadBackup()
         if (!window.confirm('O backup atual foi baixado. Confirma a substituição pelos dados do arquivo selecionado?')) return
       }
-      const report = await importBackup(backup, importMode)
+      const report = await importBackup(pendingImport.backup, importMode)
       const preferences = report.preferencesImported ? ' Preferências aplicadas.' : report.preferencesError ? ` Preferências não aplicadas: ${report.preferencesError}` : ''
       setBackupStatus({ kind: report.preferencesError ? 'error' : 'success', message: `${report.imported} registro(s) importado(s); ${report.ignored} preservado(s).${preferences}` })
+      setPendingImport(null)
     } catch (reason) {
       setBackupStatus({ kind: 'error', message: reason instanceof Error ? reason.message : 'Não foi possível importar o backup.' })
     } finally { setBackupBusy(false) }
@@ -82,7 +97,7 @@ export function SettingsPanel() {
         <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-800 p-5"><h3 className="mb-4 font-semibold text-white">Pomodoro</h3><button role="switch" aria-checked={settings.pomodoroAutoStart} onClick={() => updateSettings({ pomodoroAutoStart: !settings.pomodoroAutoStart })} className="mb-4 flex min-h-11 w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-900 px-4 text-sm text-slate-300"><span>Iniciar próxima fase</span><strong>{settings.pomodoroAutoStart ? 'Automático' : 'Manual'}</strong></button><div className="grid grid-cols-3 gap-2">{([
           ['Foco', 'focusMinutes', 180], ['Pausa curta', 'shortBreakMinutes', 60], ['Pausa longa', 'longBreakMinutes', 60],
         ] as const).map(([label, key, max]) => <label key={key} className="text-xs text-slate-400"><span className="mb-1 block min-h-8">{label}</span><input aria-label={`${label} em minutos`} type="number" min="1" max={max} value={settings[key]} onChange={(event) => updateSettings({ [key]: Math.min(max, Math.max(1, Number(event.target.value) || 1)) })} className="min-h-11 w-full rounded-xl border border-slate-700 bg-slate-900 px-2 text-center text-white" /></label>)}</div></section>
-        <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-800 p-5"><h3 className="mb-2 flex items-center gap-2 font-semibold text-white"><DatabaseBackup size={18} className="text-indigo-400" />Dados locais</h3><p className="mb-4 text-sm leading-relaxed text-slate-400">Exporte dados e preferências do Hub para transportar entre navegadores ou endereços. O arquivo permanece no seu dispositivo.</p><Button variant="secondary" className="mb-4 w-full" disabled={backupBusy} onClick={() => { void exportData() }}><Download size={17} />{backupBusy ? 'Processando…' : 'Exportar dados (.json)'}</Button><label className="mb-3 block text-xs font-medium text-slate-400">Ao importar<select disabled={backupBusy} value={importMode} onChange={(event) => setImportMode(event.target.value as ImportMode)} className="mt-1 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-white disabled:opacity-50"><option value="merge">Mesclar e preservar existentes</option><option value="replace">Substituir após backup</option></select></label><label className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 font-semibold text-slate-300 hover:bg-slate-700 ${backupBusy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}><Upload size={17} />Selecionar backup<input aria-label="Selecionar arquivo de backup" className="sr-only" type="file" accept="application/json,.json" disabled={backupBusy} onChange={(event) => { void importData(event) }} /></label>{backupStatus && <p role={backupStatus.kind === 'error' ? 'alert' : 'status'} className={`mt-4 rounded-xl border p-3 text-sm ${backupStatus.kind === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'}`}>{backupStatus.message}</p>}<p className="mt-4 text-xs leading-relaxed text-slate-500">O IndexedDB é separado por origem. Use este arquivo ao mudar de domínio, porta, navegador ou dispositivo.</p></section>
+        <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-800 p-5"><h3 className="mb-2 flex items-center gap-2 font-semibold text-white"><DatabaseBackup size={18} className="text-indigo-400" />Dados locais</h3><p className="mb-4 text-sm leading-relaxed text-slate-400">Exporte dados e preferências do Hub para transportar entre navegadores ou endereços. O arquivo permanece no seu dispositivo.</p><Button variant="secondary" className="mb-4 w-full" disabled={backupBusy} onClick={() => { void exportData() }}><Download size={17} />{backupBusy ? 'Processando…' : 'Exportar dados (.json)'}</Button><label className="mb-3 block text-xs font-medium text-slate-400">Ao importar<select disabled={backupBusy} value={importMode} onChange={(event) => setImportMode(event.target.value as ImportMode)} className="mt-1 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-white disabled:opacity-50"><option value="merge">Mesclar e preservar existentes</option><option value="replace">Substituir após backup</option></select></label><label className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 font-semibold text-slate-300 hover:bg-slate-700 ${backupBusy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}><Upload size={17} />Selecionar backup<input aria-label="Selecionar arquivo de backup" className="sr-only" type="file" accept="application/json,.json" disabled={backupBusy} onChange={(event) => { void selectImportFile(event) }} /></label>{pendingImport && <div className="mt-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4 text-sm text-slate-200"><strong className="block break-all text-white">{pendingImport.fileName}</strong><dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs"><dt className="text-slate-400">Versão</dt><dd>{pendingImport.backup.schemaVersion}</dd><dt className="text-slate-400">Exportado em</dt><dd>{Number.isNaN(Date.parse(pendingImport.backup.exportedAt)) ? 'Data indisponível' : new Date(pendingImport.backup.exportedAt).toLocaleString('pt-BR')}</dd><dt className="text-slate-400">Registros</dt><dd>{Object.values(pendingImport.backup.records).reduce((total, records) => total + (records?.length ?? 0), 0)}</dd><dt className="text-slate-400">Preferências</dt><dd>{pendingImport.backup.preferences?.settings ? 'Incluídas' : 'Não incluídas'}</dd></dl><p className="mt-3 break-words text-xs text-slate-400">Stores com dados: {Object.entries(pendingImport.backup.records).filter(([, records]) => records?.length).map(([name, records]) => `${name} (${records!.length})`).join(', ') || 'nenhuma'}.</p><div className="mt-4 grid grid-cols-2 gap-2"><Button variant="secondary" disabled={backupBusy} onClick={() => setPendingImport(null)}>Cancelar</Button><Button disabled={backupBusy} onClick={() => { void confirmImport() }}>Importar backup</Button></div></div>}{backupStatus && <p role={backupStatus.kind === 'error' ? 'alert' : 'status'} className={`mt-4 rounded-xl border p-3 text-sm ${backupStatus.kind === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'}`}>{backupStatus.message}</p>}<p className="mt-4 text-xs leading-relaxed text-slate-500">O IndexedDB é separado por origem. Use este arquivo ao mudar de domínio, porta, navegador ou dispositivo.</p></section>
       </aside>
     </div>}
   </>
