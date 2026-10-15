@@ -3,9 +3,11 @@ import { useSettings } from '../../app/providers/SettingsProvider'
 import { focusSoundService } from '../../services/audio/focusSoundService'
 import { SoundCloudWidgetHost } from '../../services/audio/SoundCloudWidgetHost'
 import { useFocusSound } from '../../services/audio/useFocusSound'
+import { useOnlineStatus } from '../../lib/useOnlineStatus'
 
 export function FocusAudioPlayer() {
   const state = useFocusSound(); const { settings, updateSettings } = useSettings()
+  const online = useOnlineStatus()
   if (!state.source) return null
   const source = state.source
   const soundCloud = source.kind === 'soundcloud'
@@ -19,6 +21,7 @@ export function FocusAudioPlayer() {
       <button role="switch" aria-checked={settings.environmentMuted} aria-label={settings.environmentMuted ? 'Ativar som ambiente' : 'Silenciar som ambiente'} onClick={() => updateSettings({ environmentMuted: !settings.environmentMuted })} className="rounded-lg p-2 text-slate-300 hover:bg-slate-800">{settings.environmentMuted ? <VolumeX size={19} /> : <Volume2 size={19} />}</button>
       <input aria-label="Volume de Sons de Foco" type="range" min="0" max="100" value={settings.environmentVolume} onChange={(event) => updateSettings({ environmentVolume: Number(event.target.value) })} className="w-24 accent-blue-500 md:w-32" />
       {state.status === 'loading' && <span role="status" className="w-full text-xs text-blue-300">Conectando à fonte…</span>}
+      {!online && source.kind !== 'ambient' && <span role="status" className="w-full text-xs text-amber-300">Sem conexão. Esta fonte on-line pode parar; reconecte quando a internet voltar.</span>}
       {state.error && <p role="alert" className="w-full text-xs text-red-300">{state.error}</p>}
       {source.kind === 'soundcloud' && <details className="w-full"><summary className="cursor-pointer text-xs font-semibold text-blue-300">Player oficial e créditos do SoundCloud</summary><div className="mt-2 overflow-hidden rounded-xl bg-white"><SoundCloudWidgetHost key={`${source.id}-${state.attempt}`} url={source.url} /></div><a href={source.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-blue-300 underline">Abrir a playlist no SoundCloud</a></details>}
     </div>
