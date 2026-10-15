@@ -33,7 +33,7 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Pomodoro automático com fases 25/5/15 e quantidade de focos por ciclo configuráveis, inclusive com recuperação idempotente de fases vencidas após recarga.
 - Kanban A Fazer/Fazendo/Concluído, com destino de ordenação, suporte a toque, controles acessíveis, persistência transacional e contagem de focos por tarefa vinculada.
 - Anotações em texto simples com salvamento automático serializado, flush ao sair, recuperação de falhas e criação de nós no mapa mental.
-- Biblioteca de mapas mentais com criação, busca, ordenação, renomeação, duplicação e exclusão confirmada.
+- Biblioteca de mapas mentais com criação por nome opcional e retry preservando o formulário, busca, ordenação, renomeação, duplicação e exclusão confirmada.
 - Editor hierárquico com raiz única, filhos e irmãos, edição inline, recolhimento, exclusão com desfazer, layout radial, pan, zoom, enquadramento e autosave transacional.
 - Interações MM-2 com reparent e reordenação por Pointer Events, alternativa acessível “Mover para”, posições manuais, tópicos independentes, seleção múltipla, busca, duplicação e clipboard de ramificações, além de navegação espacial e cancelamento contextual por teclado.
 - Recursos MM-3 para mapas mentais: layouts radial, à direita, organograma e manual; temas e estilos por tópico; ícones, notas em texto simples, links seguros e imagens locais com limpeza de ativos órfãos; conexões transversais rotuladas, selecionáveis, editáveis e protegidas contra duplicação; Outline e modo de foco.
