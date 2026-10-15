@@ -2,7 +2,7 @@ import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 const groups = [
-  ['Criar e editar', [['Tab', 'Criar subtópico'], ['Enter', 'Criar tópico irmão'], ['Shift + Enter', 'Criar irmão acima'], ['F2', 'Editar tópico'], ['Delete', 'Excluir ramificação']]],
+  ['Criar e editar', [['Tab', 'Criar subtópico'], ['Enter', 'Criar tópico irmão'], ['Shift + Enter', 'Criar irmão acima'], ['F2', 'Editar tópico'], ['Delete', 'Excluir tópico ou conexão selecionada']]],
   ['Organizar', [['Alt + ↑/↓', 'Reordenar entre irmãos'], ['Espaço', 'Expandir ou recolher'], ['Setas', 'Navegar entre tópicos']]],
   ['Histórico e seleção', [['Shift + arrastar', 'Selecionar uma área'], ['Ctrl/Cmd + Z', 'Desfazer'], ['Ctrl/Cmd + Shift + Z', 'Refazer'], ['Ctrl/Cmd + A', 'Selecionar tópicos visíveis'], ['Ctrl/Cmd + C/X/V', 'Copiar, recortar ou colar']]],
   ['Visualização', [['+ / −', 'Alterar zoom'], ['0', 'Restaurar zoom em 100%'], ['?', 'Abrir esta ajuda'], ['Escape', 'Cancelar ação, fechar painel ou limpar seleção']]],

@@ -143,3 +143,12 @@ test('tecla zero restaura o zoom sem reenquadrar o mapa', async () => {
   render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
   const canvas = await screen.findByLabelText('Canvas do mapa mental'); expect(screen.getByText('200%')).toBeInTheDocument(); fireEvent.keyDown(canvas, { key: '0' }); expect(screen.getByText('100%')).toBeInTheDocument(); expect(canvas.firstElementChild).toHaveStyle({ transform: 'translate(60px, 40px) scale(1)' })
 })
+
+test('seleciona uma conexão pelo canvas e permite excluí-la pelo teclado', async () => {
+  const connected: MindMapDocument = { ...documentWithChildren, connections: [{ id: 'edge', mapId: 'map', sourceId: 'root', targetId: 'a', label: 'depende de', color: '#a78bfa', width: 2, dashed: false, directed: true, createdAt: 4, updatedAt: 4 }] }
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(connected); vi.spyOn(mindMapsRepository, 'isAdvancedEnabled').mockResolvedValue(true); vi.spyOn(mindMapsRepository, 'getAssets').mockResolvedValue([]); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  const canvas = await screen.findByLabelText('Canvas do mapa mental'); const connection = screen.getByRole('button', { name: 'Conexão de Plano para Primeiro' }); fireEvent.click(connection)
+  expect(connection).toHaveAttribute('aria-pressed', 'true'); expect(screen.getByLabelText('Conexão selecionada')).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: /Tópico: Plano/ })); expect(connection).toHaveAttribute('aria-pressed', 'false'); fireEvent.keyDown(connection, { key: 'Enter' }); expect(connection).toHaveAttribute('aria-pressed', 'true'); fireEvent.keyDown(canvas, { key: 'Delete' })
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ connections: [] }))); expect(screen.queryByRole('button', { name: 'Conexão de Plano para Primeiro' })).not.toBeInTheDocument()
+})

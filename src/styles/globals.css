@@ -35,6 +35,14 @@ button:disabled { cursor: not-allowed; }
 .editor-icon-button:disabled { opacity: .35; }
 .mind-map-canvas { background-color: var(--bg); background-image: radial-gradient(circle, color-mix(in srgb, var(--text-muted) 23%, transparent) 1px, transparent 1px); background-size: 24px 24px; }
 .mind-map-connection { fill: none; stroke: color-mix(in srgb, var(--brand) 62%, var(--text-muted)); stroke-width: 3; stroke-linecap: round; }
+.mind-map-transverse { pointer-events: none; transition: filter 180ms ease; }
+.mind-map-connection-hit { cursor: pointer; pointer-events: stroke; }
+.mind-map-connection-hit:focus { outline: none; }
+.mind-map-connection-hit:focus + text,
+.mind-map-connection-hit:hover + text { font-weight: 700; }
+g.is-selected > .mind-map-transverse,
+g:has(> .mind-map-connection-hit:focus) > .mind-map-transverse,
+g:has(> .mind-map-connection-hit:hover) > .mind-map-transverse { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--focus-ring) 75%, transparent)); }
 .mind-map-topic { border: 1px solid color-mix(in srgb, var(--border) 92%, transparent); border-radius: 14px; background: var(--surface); color: var(--text); box-shadow: 0 8px 20px rgb(0 0 0 / .2); transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
 .mind-map-topic:hover { border-color: color-mix(in srgb, var(--brand) 55%, var(--border)); }
 .mind-map-topic.is-selected { border-color: var(--focus-ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 25%, transparent), 0 10px 28px rgb(0 0 0 / .25); }
