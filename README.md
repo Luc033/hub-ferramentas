@@ -35,7 +35,7 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Anotações em texto simples com salvamento automático serializado, flush ao sair, recuperação de falhas e criação de nós no mapa mental.
 - Biblioteca de mapas mentais com criação, busca, ordenação, renomeação, duplicação e exclusão confirmada.
 - Editor hierárquico com raiz única, filhos e irmãos, edição inline, recolhimento, exclusão com desfazer, layout radial, pan, zoom, enquadramento e autosave transacional.
-- Interações MM-2 com reparent e reordenação por Pointer Events, alternativa acessível “Mover para”, posições manuais, tópicos independentes, seleção múltipla, busca, duplicação e clipboard de ramificações.
+- Interações MM-2 com reparent e reordenação por Pointer Events, alternativa acessível “Mover para”, posições manuais, tópicos independentes, seleção múltipla, busca, duplicação e clipboard de ramificações, além de navegação espacial e cancelamento contextual por teclado.
 - Recursos MM-3 para mapas mentais: layouts radial, à direita, organograma e manual; temas e estilos por tópico; ícones, notas em texto simples, links seguros e imagens locais; conexões transversais rotuladas; Outline e modo de foco.
 - Recursos MM-4 para mapas mentais: arquivo JSON nativo versionado com importação como novo mapa, SVG autocontido, PNG local, exportação de recuperação, aviso de edição concorrente entre abas e cópia de uma Nota para um mapa escolhido.
 - Conclusão do editor de mapas: Outline editável com reparent e ordenação, tópicos flutuantes, estilos completos de tópicos e conexões, busca em tópicos e notas, ajuda de atalhos, otimização local de imagens e layouts baseados nas dimensões das subárvores.

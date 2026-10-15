@@ -6,7 +6,7 @@ import { ConfirmModal } from '../../components/ui/Modal'
 import { downloadBackup } from '../../services/backup/backupService'
 import { mindMapsRepository } from '../../services/db/mindMapsRepository'
 import { notesRepository } from '../../services/db/notesRepository'
-import { calculateRadialLayout, connectionPath, transverseConnectionPath } from './layout'
+import { calculateRadialLayout, connectionPath, findDirectionalTopic, transverseConnectionPath, type NavigationDirection } from './layout'
 import { addTopic, canMoveTopic, descendantIds, duplicateTopicBranch, moveTopic, moveTopicAmongSiblings, pasteTopicBranch, removeTopicBranches, removeTopicKeepChildren } from './tree'
 import type { MindMapAsset, MindMapConnection, MindMapDocument, MindMapLayout, MindMapTopic, MindMapViewport } from './types'
 import { createMindMapFile, downloadBlob, renderMindMapPng, renderMindMapSvg, safeFileName } from './mindMapTransfer'
@@ -308,6 +308,10 @@ export default function MindMapEditorPage() {
     if (!document) return; const canvas = canvasRef.current; const current = document.map.viewport; const zoom = clampZoom(current.zoom + delta); const cx = canvas ? canvas.clientWidth / 2 : 0; const cy = canvas ? canvas.clientHeight / 2 : 0; const factor = zoom / current.zoom
     scheduleViewportSave({ zoom, panX: cx - (cx - current.panX) * factor, panY: cy - (cy - current.panY) * factor })
   }
+  const resetZoom = () => {
+    if (!document) return; const canvas = canvasRef.current; const current = document.map.viewport; const cx = canvas ? canvas.clientWidth / 2 : 0; const cy = canvas ? canvas.clientHeight / 2 : 0; const factor = 1 / current.zoom
+    scheduleViewportSave({ zoom: 1, panX: cx - (cx - current.panX) * factor, panY: cy - (cy - current.panY) * factor })
+  }
   const onCanvasPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('[data-topic]')) return
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -389,7 +393,14 @@ export default function MindMapEditorPage() {
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement; if (target.matches('input, textarea, select, [contenteditable="true"]')) return
     if (event.key === '?') { event.preventDefault(); setShortcutsOpen(true); return }
-    if (event.key === 'Escape' && (detailsOpen || outlineOpen || searchOpen || moveOpen || exportOpen)) { event.preventDefault(); setDetailsOpen(false); setOutlineOpen(false); setSearchOpen(false); setMoveOpen(false); setExportOpen(false); return }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      if (connectingFrom) { setConnectingFrom(null); return }
+      if (topicDrag || selectionBox || panning || pinchGesture.current) { setTopicDrag(null); setDropTarget(null); setSelectionBox(null); setPanning(null); pinchGesture.current = null; canvasPointers.current.clear(); return }
+      if (detailsOpen || outlineOpen || searchOpen || moveOpen || exportOpen) { setDetailsOpen(false); setOutlineOpen(false); setSearchOpen(false); setMoveOpen(false); setExportOpen(false); return }
+      if (focusRootId) { setFocusRootId(null); return }
+      setSelectedId(null); setSelectedIds(new Set()); return
+    }
     if (!selectedId) return
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); return }
     if ((event.ctrlKey && event.key.toLowerCase() === 'y')) { event.preventDefault(); redo(); return }
@@ -402,13 +413,13 @@ export default function MindMapEditorPage() {
     else if (event.key === 'F2') { event.preventDefault(); if (selected) beginEdit(selected) }
     else if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); requestDelete() }
     else if (event.key === ' ') { event.preventDefault(); toggleCollapse() }
-    else if (event.key === 'Escape') { event.preventDefault(); setSelectedId(null); setSelectedIds(new Set()) }
     else if (event.altKey && event.key === 'ArrowUp') { event.preventDefault(); reorderSelected(-1) }
     else if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); reorderSelected(1) }
     else if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomBy(.1) }
     else if (event.key === '-') { event.preventDefault(); zoomBy(-.1) }
+    else if (event.key === '0') { event.preventDefault(); resetZoom() }
     else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key) && layout) {
-      event.preventDefault(); const ordered = [...layout.topics.values()].sort((a, b) => a.y - b.y || a.x - b.x); const index = ordered.findIndex((item) => item.id === selectedId); const direction = event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 1; const id = ordered[(index + direction + ordered.length) % ordered.length]?.id ?? selectedId; setSelectedId(id); setSelectedIds(new Set([id]))
+      event.preventDefault(); const direction = event.key.replace('Arrow', '').toLocaleLowerCase() as NavigationDirection; const id = findDirectionalTopic(layout.topics.values(), selectedId, direction); setSelectedId(id); setSelectedIds(new Set([id]))
     }
   }
   const enableAdvanced = async () => {

@@ -129,3 +129,17 @@ test('cria anotação textual a partir do tópico selecionado sem alterar o mapa
   render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
   fireEvent.click(await screen.findByRole('button', { name: 'Criar nota' })); await waitFor(() => expect(createNote).toHaveBeenCalledWith('Plano', expect.stringContaining('- Primeiro'))); expect(screen.getByText('Anotação criada sem alterar o mapa.')).toBeInTheDocument()
 })
+
+test('Escape cancela uma conexão antes de limpar a seleção', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren); vi.spyOn(mindMapsRepository, 'isAdvancedEnabled').mockResolvedValue(true); vi.spyOn(mindMapsRepository, 'getAssets').mockResolvedValue([]); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  const canvas = await screen.findByLabelText('Canvas do mapa mental'); fireEvent.click(screen.getByRole('button', { name: 'Conectar' })); expect(screen.getByText('Selecione o destino')).toBeInTheDocument(); fireEvent.keyDown(canvas, { key: 'Escape' })
+  expect(screen.queryByText('Selecione o destino')).not.toBeInTheDocument(); expect(screen.getByRole('button', { name: 'Conectar' })).toBeInTheDocument(); expect(screen.getByRole('button', { name: /Tópico: Plano/ })).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('tecla zero restaura o zoom sem reenquadrar o mapa', async () => {
+  const zoomed = { ...document, map: { ...document.map, viewport: { panX: 120, panY: 80, zoom: 2 } } }
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(zoomed); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  const canvas = await screen.findByLabelText('Canvas do mapa mental'); expect(screen.getByText('200%')).toBeInTheDocument(); fireEvent.keyDown(canvas, { key: '0' }); expect(screen.getByText('100%')).toBeInTheDocument(); expect(canvas.firstElementChild).toHaveStyle({ transform: 'translate(60px, 40px) scale(1)' })
+})

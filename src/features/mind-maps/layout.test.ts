@@ -1,4 +1,4 @@
-import { calculateRadialLayout, connectionPath, transverseConnectionPath } from './layout'
+import { calculateRadialLayout, connectionPath, findDirectionalTopic, transverseConnectionPath } from './layout'
 import type { MindMapTopic } from './types'
 
 const topic = (id: string, parentId: string | null, order: number, text = id): MindMapTopic => ({ id, mapId: 'map', parentId, order, text, collapsed: false, createdAt: order + 1, updatedAt: 1 })
@@ -51,6 +51,18 @@ test('gera conexões manuais retas e curvas com curvatura configurável', () => 
   const target = { id: 'b', x: 300, y: 100, width: 100, height: 50, side: 1 as const, depth: 1 }
   expect(transverseConnectionPath(source, target, 'straight')).toContain(' L ')
   expect(transverseConnectionPath(source, target, 'curve', 120)).toContain(' Q 200 195 ')
+})
+
+test('navega para o tópico mais próximo na direção solicitada', () => {
+  const topics = [
+    { id: 'center', x: 0, y: 0, width: 100, height: 50, side: 0 as const, depth: 0 },
+    { id: 'right-near', x: 150, y: 10, width: 100, height: 50, side: 1 as const, depth: 1 },
+    { id: 'right-far', x: 400, y: 0, width: 100, height: 50, side: 1 as const, depth: 1 },
+    { id: 'below', x: 5, y: 180, width: 100, height: 50, side: 1 as const, depth: 1 },
+  ]
+  expect(findDirectionalTopic(topics, 'center', 'right')).toBe('right-near')
+  expect(findDirectionalTopic(topics, 'center', 'down')).toBe('below')
+  expect(findDirectionalTopic(topics, 'center', 'left')).toBe('center')
 })
 
 test('calcula mapa com 150 tópicos sem perder nenhum nó', () => {

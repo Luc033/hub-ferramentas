@@ -3,6 +3,7 @@ import { visibleTopics } from './tree'
 
 export interface TopicLayout { id: string; x: number; y: number; width: number; height: number; side: -1 | 0 | 1; depth: number }
 export interface MindMapLayout { topics: Map<string, TopicLayout>; width: number; height: number; minX: number; minY: number; maxX: number; maxY: number }
+export type NavigationDirection = 'up' | 'down' | 'left' | 'right'
 
 const ROOT_WIDTH = 220
 const TOPIC_WIDTH = 180
@@ -83,6 +84,24 @@ export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string,
   const minX = Math.min(...values.map((item) => item.x)); const minY = Math.min(...values.map((item) => item.y))
   const maxX = Math.max(...values.map((item) => item.x + item.width)); const maxY = Math.max(...values.map((item) => item.y + item.height))
   return { topics: positioned, minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY }
+}
+
+export function findDirectionalTopic(topics: Iterable<TopicLayout>, currentId: string, direction: NavigationDirection) {
+  const items = [...topics]
+  const current = items.find((topic) => topic.id === currentId)
+  if (!current) return currentId
+  const currentX = current.x + current.width / 2; const currentY = current.y + current.height / 2
+  let bestId = currentId; let bestScore = Number.POSITIVE_INFINITY
+  items.forEach((topic) => {
+    if (topic.id === currentId) return
+    const dx = topic.x + topic.width / 2 - currentX; const dy = topic.y + topic.height / 2 - currentY
+    const primary = direction === 'left' ? -dx : direction === 'right' ? dx : direction === 'up' ? -dy : dy
+    if (primary <= 0) return
+    const cross = direction === 'left' || direction === 'right' ? Math.abs(dy) : Math.abs(dx)
+    const score = primary + cross * 2
+    if (score < bestScore) { bestId = topic.id; bestScore = score }
+  })
+  return bestId
 }
 
 export function connectionPath(parent: TopicLayout, child: TopicLayout) {
