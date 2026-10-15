@@ -28,3 +28,8 @@ test('substitui o grafo em uma única operação para desfazer e refazer', async
   expect(await notesRepository.getNodes()).toEqual([expect.objectContaining({ id: first.id, text: 'Restaurado' })])
   expect(await notesRepository.getEdges()).toEqual([])
 })
+
+test('cria nota preenchida em uma única operação pública', async () => {
+  const note = await notesRepository.createNote('Tópico', 'Detalhes em texto simples')
+  expect(note).toMatchObject({ title: 'Tópico', content: 'Detalhes em texto simples' }); expect(await notesRepository.getNotes()).toEqual([expect.objectContaining({ id: note.id, title: 'Tópico' })])
+})

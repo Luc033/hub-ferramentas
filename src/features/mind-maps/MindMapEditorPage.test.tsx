@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { vi } from 'vitest'
 import { mindMapsRepository } from '../../services/db/mindMapsRepository'
+import { notesRepository } from '../../services/db/notesRepository'
 import type { MindMapDocument } from './types'
 import MindMapEditorPage from './MindMapEditorPage'
 
@@ -104,4 +105,27 @@ test('indica se a busca encontrou conteúdo na nota sem expor o texto inteiro', 
   render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
   fireEvent.click(await screen.findByRole('button', { name: 'Buscar tópicos' })); fireEvent.change(screen.getByPlaceholderText('Digite um termo'), { target: { value: 'segredo' } })
   expect(screen.getByText('Nota · correspondência encontrada')).toBeInTheDocument(); expect(screen.queryByText('segredo pesquisável extenso')).not.toBeInTheDocument()
+})
+
+test('seleciona múltiplos tópicos com Shift e arraste no canvas', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  const canvas = await screen.findByLabelText('Canvas do mapa mental'); Object.defineProperty(canvas, 'setPointerCapture', { value: vi.fn() })
+  const pointer = (type: string, x: number, y: number) => { const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, shiftKey: true }); Object.defineProperty(event, 'pointerId', { value: 1 }); fireEvent(canvas, event) }
+  pointer('pointerdown', -1000, -1000); pointer('pointermove', 2000, 2000); pointer('pointerup', 2000, 2000)
+  expect(screen.getByText('3 selecionados')).toBeInTheDocument()
+})
+
+test('exclui um tópico preservando e promovendo seus filhos', async () => {
+  const nested: MindMapDocument = { ...document, topics: [document.topics[0], { id: 'parent', mapId: 'map', parentId: 'root', order: 0, text: 'Pai', collapsed: false, createdAt: 2, updatedAt: 2 }, { id: 'child', mapId: 'map', parentId: 'parent', order: 0, text: 'Filho', collapsed: false, createdAt: 3, updatedAt: 3 }] }
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(nested); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: /Tópico: Pai/ })); fireEvent.click(screen.getByRole('button', { name: 'Excluir' })); fireEvent.click(screen.getByRole('button', { name: 'Excluir tópico e manter filhos' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ id: 'child', parentId: 'root', order: 0 })]) }))); expect(screen.queryByRole('button', { name: /Tópico: Pai/ })).not.toBeInTheDocument()
+})
+
+test('cria anotação textual a partir do tópico selecionado sem alterar o mapa', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined); vi.spyOn(notesRepository, 'isEnabled').mockResolvedValue(true); const createNote = vi.spyOn(notesRepository, 'createNote').mockResolvedValue({ id: 'note', title: 'Plano', content: '', createdAt: 1, updatedAt: 1 })
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Criar nota' })); await waitFor(() => expect(createNote).toHaveBeenCalledWith('Plano', expect.stringContaining('- Primeiro'))); expect(screen.getByText('Anotação criada sem alterar o mapa.')).toBeInTheDocument()
 })

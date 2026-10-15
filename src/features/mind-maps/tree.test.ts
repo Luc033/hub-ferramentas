@@ -1,4 +1,4 @@
-import { addTopic, canMoveTopic, duplicateTopicBranch, moveTopic, moveTopicAmongSiblings, normalizeTopicOrders, pasteTopicBranch, removeTopicBranch, validateMindMapDocument, visibleTopics } from './tree'
+import { addTopic, canMoveTopic, duplicateTopicBranch, moveTopic, moveTopicAmongSiblings, normalizeTopicOrders, pasteTopicBranch, removeTopicBranch, removeTopicKeepChildren, validateMindMapDocument, visibleTopics } from './tree'
 import type { MindMap, MindMapTopic } from './types'
 
 const map: MindMap = { id: 'map', schemaVersion: 1, name: 'Mapa', rootId: 'root', layout: 'radial', viewport: { panX: 0, panY: 0, zoom: 1 }, createdAt: 1, updatedAt: 1 }
@@ -46,4 +46,11 @@ test('remove um ramo, protege a raiz e respeita recolhimento', () => {
   expect(removeTopicBranch(topics, 'a', 'root').map((item) => item.id)).toEqual(['root', 'c'])
   expect(() => removeTopicBranch(topics, 'root', 'root')).toThrow('central')
   expect(visibleTopics(topics.map((item) => item.id === 'a' ? { ...item, collapsed: true } : item), 'root').map((item) => item.id)).toEqual(['root', 'a', 'c'])
+})
+
+test('exclui um tópico promovendo seus filhos na mesma posição', () => {
+  const topics = [topic('root', null, 0), topic('before', 'root', 0), topic('parent', 'root', 1), topic('after', 'root', 2), topic('child-a', 'parent', 0), topic('child-b', 'parent', 1)]
+  const result = removeTopicKeepChildren(topics, 'parent', 'root', 20); const children = result.filter((item) => item.parentId === 'root').sort((a, b) => a.order - b.order)
+  expect(children.map(({ id }) => id)).toEqual(['before', 'child-a', 'child-b', 'after']); expect(children.map(({ order }) => order)).toEqual([0, 1, 2, 3]); expect(children.find(({ id }) => id === 'child-a')?.updatedAt).toBe(20)
+  expect(() => removeTopicKeepChildren(topics, 'root', 'root')).toThrow('central')
 })

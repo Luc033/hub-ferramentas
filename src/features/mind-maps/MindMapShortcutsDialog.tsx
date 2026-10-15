@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 const groups = [
   ['Criar e editar', [['Tab', 'Criar subtópico'], ['Enter', 'Criar tópico irmão'], ['Shift + Enter', 'Criar irmão acima'], ['F2', 'Editar tópico'], ['Delete', 'Excluir ramificação']]],
   ['Organizar', [['Alt + ↑/↓', 'Reordenar entre irmãos'], ['Espaço', 'Expandir ou recolher'], ['Setas', 'Navegar entre tópicos']]],
-  ['Histórico e seleção', [['Ctrl/Cmd + Z', 'Desfazer'], ['Ctrl/Cmd + Shift + Z', 'Refazer'], ['Ctrl/Cmd + A', 'Selecionar tópicos visíveis'], ['Ctrl/Cmd + C/X/V', 'Copiar, recortar ou colar']]],
+  ['Histórico e seleção', [['Shift + arrastar', 'Selecionar uma área'], ['Ctrl/Cmd + Z', 'Desfazer'], ['Ctrl/Cmd + Shift + Z', 'Refazer'], ['Ctrl/Cmd + A', 'Selecionar tópicos visíveis'], ['Ctrl/Cmd + C/X/V', 'Copiar, recortar ou colar']]],
   ['Visualização', [['+ / −', 'Alterar zoom'], ['?', 'Abrir esta ajuda'], ['Escape', 'Fechar painel ou limpar seleção']]],
 ] as const
 

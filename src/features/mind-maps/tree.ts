@@ -65,6 +65,17 @@ export function removeTopicBranch(topics: MindMapTopic[], topicId: string, rootI
   return normalizeTopicOrders(topics.filter((topic) => !removed.has(topic.id)))
 }
 
+export function removeTopicKeepChildren(topics: MindMapTopic[], topicId: string, rootId: string, now = Date.now()) {
+  if (topicId === rootId) throw new Error('O tópico central não pode ser excluído.')
+  const removed = topics.find((topic) => topic.id === topicId); if (!removed) throw new Error('O tópico não existe mais.')
+  const children = topics.filter((topic) => topic.parentId === topicId).sort((a, b) => a.order - b.order)
+  const siblings = topics.filter((topic) => topic.parentId === removed.parentId && topic.id !== topicId).sort((a, b) => a.order - b.order)
+  const insertAt = Math.max(0, siblings.filter((topic) => topic.order < removed.order).length); const promoted = children.map((topic) => ({ ...topic, parentId: removed.parentId, updatedAt: now }))
+  siblings.splice(insertAt, 0, ...promoted)
+  const affected = new Set([...siblings.map(({ id }) => id), topicId])
+  return normalizeTopicOrders([...topics.filter((topic) => !affected.has(topic.id)), ...siblings])
+}
+
 export function visibleTopics(topics: MindMapTopic[], rootId: string) {
   const result: MindMapTopic[] = []
   const visit = (id: string) => {

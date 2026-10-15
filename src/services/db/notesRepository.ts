@@ -15,7 +15,7 @@ export const notesRepository = {
     return records.sort((a, b) => b.updatedAt - a.updatedAt)
   },
   async saveNote(note: Note) { const db = await openDatabase(); const tx = db.transaction(NOTES_STORE, 'readwrite'); tx.objectStore(NOTES_STORE).put({ ...note, updatedAt: Date.now() }); await transactionDone(tx); emit() },
-  async createNote() { const now = Date.now(); const note: Note = { id: crypto.randomUUID(), title: '', content: '', createdAt: now, updatedAt: now }; await this.saveNote(note); return note },
+  async createNote(title = '', content = '') { const now = Date.now(); const note: Note = { id: crypto.randomUUID(), title: title.slice(0, 120), content, createdAt: now, updatedAt: now }; await this.saveNote(note); return note },
   async deleteNote(id: string) { const db = await openDatabase(); const tx = db.transaction(NOTES_STORE, 'readwrite'); tx.objectStore(NOTES_STORE).delete(id); await transactionDone(tx); emit() },
   async getBoard(): Promise<Board> {
     const db = await openDatabase(); const tx = db.transaction(BOARDS_STORE, 'readwrite'); const store = tx.objectStore(BOARDS_STORE)

@@ -39,6 +39,7 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Recursos MM-3 para mapas mentais: layouts radial, à direita, organograma e manual; temas e estilos por tópico; ícones, notas em texto simples, links seguros e imagens locais; conexões transversais rotuladas; Outline e modo de foco.
 - Recursos MM-4 para mapas mentais: arquivo JSON nativo versionado com importação como novo mapa, SVG autocontido, PNG local, exportação de recuperação, aviso de edição concorrente entre abas e cópia de uma Nota para um mapa escolhido.
 - Conclusão do editor de mapas: Outline editável com reparent e ordenação, tópicos flutuantes, estilos completos de tópicos e conexões, busca em tópicos e notas, ajuda de atalhos, otimização local de imagens e layouts baseados nas dimensões das subárvores.
+- Edição avançada local: seleção múltipla por área com `Shift + arrastar`, exclusão opcional do tópico preservando seus filhos e criação de uma Anotação a partir de um tópico sem modificar o mapa.
 - Quadro livre legado com nós, conexões, arraste, pan, zoom e histórico de sessão, preservado separadamente.
 - Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O catálogo só exibe URLs aprovadas pelo oEmbed em tempo de execução, e o miniplayer global mantém a reprodução durante a navegação interna.
 
