@@ -12,6 +12,7 @@ export interface SoundCloudController { play(): void; pause(): void; next(): voi
 
 const ambientTitles: Record<FocusSound, string> = { white: 'Ruído Branco', rain: 'Chuva Sintética', waves: 'Ondas Sintéticas' }
 export const FLUXFM_STREAM = 'https://channels.fluxfm.de/chillhop/externalembedflxhp/stream.mp3'
+const AMBIENT_FADE_SECONDS = .08
 
 class FocusSoundService {
   private state: FocusAudioState = { source: null, status: 'stopped', volume: 30, muted: false, error: null, attempt: 0 }
@@ -37,7 +38,8 @@ class FocusSoundService {
       const data = buffer.getChannelData(0)
       for (let index = 0; index < length; index += 1) data[index] = Math.random() * 2 - 1
       this.sourceNode = this.context.createBufferSource(); this.sourceNode.buffer = buffer; this.sourceNode.loop = true
-      this.master = this.context.createGain(); this.master.gain.value = this.effectiveVolume() / 100
+      this.master = this.context.createGain()
+      this.master.gain.setValueAtTime(0, this.context.currentTime)
       if (sound === 'white') this.sourceNode.connect(this.master)
       else {
         const filter = this.context.createBiquadFilter(); filter.type = sound === 'rain' ? 'bandpass' : 'lowpass'; filter.frequency.value = sound === 'rain' ? 1800 : 500; filter.Q.value = sound === 'rain' ? .7 : 1.2
@@ -50,8 +52,9 @@ class FocusSoundService {
         } else { this.sourceNode.connect(filter).connect(this.master); this.extras.push(filter) }
       }
       this.master.connect(this.context.destination); this.sourceNode.start()
+      this.master.gain.linearRampToValueAtTime(this.effectiveVolume() / 100, this.context.currentTime + AMBIENT_FADE_SECONDS)
       this.update({ source: { kind: 'ambient', id: sound, title: ambientTitles[sound], provider: 'Web Audio' }, status: 'playing', error: null })
-    } catch { this.fail('O navegador bloqueou o áudio. Interaja com a página e tente novamente.') }
+    } catch { this.stopCurrent(); this.fail('O navegador bloqueou o áudio. Interaja com a página e tente novamente.') }
   }
 
   async playRadio() {
@@ -74,15 +77,19 @@ class FocusSoundService {
 
   async pause() {
     if (!['playing', 'loading'].includes(this.state.status)) return
-    if (this.state.source?.kind === 'ambient') await this.context?.suspend()
-    else if (this.state.source?.kind === 'radio') this.radio?.pause()
+    if (this.state.source?.kind === 'ambient') {
+      const source = this.sourceNode; this.fadeAmbientToZero()
+      await new Promise((resolve) => globalThis.setTimeout(resolve, AMBIENT_FADE_SECONDS * 1_000))
+      if (source !== this.sourceNode || this.state.source?.kind !== 'ambient') return
+      await this.context?.suspend()
+    } else if (this.state.source?.kind === 'radio') this.radio?.pause()
     else this.soundCloud?.pause()
     this.update({ status: 'paused' })
   }
   async resume() {
     if (!this.state.source || !['paused', 'error'].includes(this.state.status)) return
     try {
-      if (this.state.source.kind === 'ambient') await this.context?.resume()
+      if (this.state.source.kind === 'ambient') { await this.context?.resume(); this.fadeAmbientToVolume() }
       else if (this.state.source.kind === 'radio') await this.getRadio().play()
       else this.soundCloud?.play()
       this.update({ status: this.state.source.kind === 'soundcloud' ? 'loading' : 'playing', error: null })
@@ -109,10 +116,30 @@ class FocusSoundService {
   }
   private isCurrentSoundCloud(controller: SoundCloudController) { return this.state.source?.kind === 'soundcloud' && this.soundCloud === controller }
   private effectiveVolume() { return this.state.muted ? 0 : this.state.volume }
-  private applyVolume() { const effective = this.effectiveVolume(); if (this.master && this.context) this.master.gain.setTargetAtTime(effective / 100, this.context.currentTime, .03); if (this.radio) this.radio.volume = effective / 100; this.soundCloud?.setVolume(effective) }
+  private applyVolume() { const effective = this.effectiveVolume(); if (this.master && this.context) { this.master.gain.cancelScheduledValues(this.context.currentTime); this.master.gain.setTargetAtTime(effective / 100, this.context.currentTime, .03) } if (this.radio) this.radio.volume = effective / 100; this.soundCloud?.setVolume(effective) }
+  private fadeAmbientToZero() {
+    if (!this.master || !this.context) return
+    const now = this.context.currentTime
+    this.master.gain.cancelScheduledValues(now); this.master.gain.setValueAtTime(this.master.gain.value, now); this.master.gain.linearRampToValueAtTime(0, now + AMBIENT_FADE_SECONDS)
+  }
+  private fadeAmbientToVolume() {
+    if (!this.master || !this.context) return
+    const now = this.context.currentTime
+    this.master.gain.cancelScheduledValues(now); this.master.gain.setValueAtTime(this.master.gain.value, now); this.master.gain.linearRampToValueAtTime(this.effectiveVolume() / 100, now + AMBIENT_FADE_SECONDS)
+  }
   private stopCurrent() {
-    try { this.sourceNode?.stop() } catch { /* nó já encerrado */ }
-    this.sourceNode?.disconnect(); this.master?.disconnect(); this.extras.forEach((node) => node.disconnect()); this.sourceNode = null; this.master = null; this.extras = []
+    const source = this.sourceNode; const master = this.master; const extras = this.extras; const context = this.context
+    this.sourceNode = null; this.master = null; this.extras = []
+    if (source) {
+      const stopAt = context ? context.currentTime + AMBIENT_FADE_SECONDS : 0
+      if (master && context) {
+        const now = context.currentTime
+        master.gain.cancelScheduledValues(now); master.gain.setValueAtTime(master.gain.value, now); master.gain.linearRampToValueAtTime(0, stopAt)
+      }
+      try { source.stop(stopAt) } catch { /* nó já encerrado */ }
+      extras.forEach((node) => { try { (node as AudioNode & { stop?: (when?: number) => void }).stop?.(stopAt) } catch { /* nó já encerrado */ } })
+      globalThis.setTimeout(() => { source.disconnect(); master?.disconnect(); extras.forEach((node) => node.disconnect()) }, AMBIENT_FADE_SECONDS * 1_000 + 20)
+    } else { master?.disconnect(); extras.forEach((node) => node.disconnect()) }
     if (this.radio) { this.radio.pause(); this.radio.removeAttribute('src'); this.radio.load() }
     this.soundCloud?.pause(); this.soundCloud = null
   }

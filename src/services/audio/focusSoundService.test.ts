@@ -54,7 +54,11 @@ test('mantém a modulação das ondas antes do ganho mestre para respeitar mute'
   class FakeParam {
     value = 0
     targets: number[] = []
+    ramps: Array<{ value: number; time: number }> = []
+    cancelScheduledValues = vi.fn()
+    setValueAtTime(value: number) { this.value = value }
     setTargetAtTime(value: number) { this.value = value; this.targets.push(value) }
+    linearRampToValueAtTime(value: number, time: number) { this.value = value; this.ramps.push({ value, time }) }
   }
   class FakeNode {
     connections: unknown[] = []
@@ -81,6 +85,9 @@ test('mantém a modulação das ondas antes do ganho mestre para respeitar mute'
   expect(oscillators[0].connections[0]).toBe(gains[2])
   expect(gains[2].connections[0]).toBe(gains[1].gain)
   expect(gains[2].connections[0]).not.toBe(gains[0].gain)
+  expect(gains[0].gain.ramps[0]).toEqual({ value: .3, time: .08 })
   focusSoundService.setMuted(true)
   expect(gains[0].gain.targets.at(-1)).toBe(0)
+  focusSoundService.stop()
+  expect(gains[0].gain.ramps.at(-1)).toEqual({ value: 0, time: .08 })
 })
