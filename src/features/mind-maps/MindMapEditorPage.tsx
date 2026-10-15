@@ -16,6 +16,7 @@ import { MindMapShortcutsDialog } from './MindMapShortcutsDialog'
 import { formatImageBytes, prepareMindMapImage } from './imageProcessing'
 import { hasConnectionBetween } from './connectionRules'
 import { clampMindMapZoom, zoomViewportAtPoint } from './viewport'
+import type { NewMindMapLink } from './linkValidation'
 
 type SaveState = 'saved' | 'saving' | 'error'
 interface History { past: MindMapDocument[]; future: MindMapDocument[] }
@@ -469,10 +470,7 @@ export default function MindMapEditorPage() {
     const now = Date.now(); const connection: MindMapConnection = { id: crypto.randomUUID(), mapId: document.map.id, sourceId: connectingFrom, targetId, label: '', color: '#a78bfa', width: 2, dashed: false, directed: false, createdAt: now, updatedAt: now }; commitDocument({ ...document, connections: [...(document.connections ?? []), connection] }); setIntegrationNotice({ error: false, text: 'Conexão criada.' })
     setConnectingFrom(null)
   }
-  const addLink = () => {
-    if (!selected) return; const raw = window.prompt('URL pública (http ou https)'); if (!raw) return
-    try { const url = new URL(raw); if (!['http:', 'https:'].includes(url.protocol)) throw new Error(); const label = window.prompt('Nome do link', url.hostname)?.trim() || url.hostname; updateSelectedTopics({ links: [...(selected.links ?? []), { id: crypto.randomUUID(), label: label.slice(0, 80), url: url.toString() }] }) } catch { setSaveState('error'); setSaveError('Informe um endereço http ou https válido.') }
-  }
+  const addLink = (link: NewMindMapLink) => { if (selected) updateSelectedTopics({ links: [...(selected.links ?? []), { id: crypto.randomUUID(), ...link }] }) }
   const uploadImage = async (file?: File) => {
     if (!file || !document || !selected) return
     try { setImageMessage('Otimizando imagem…'); const processed = await prepareMindMapImage(file); const asset = await mindMapsRepository.saveAsset(document.map.id, processed.file); setAssets((current) => [...current, asset]); updateSelectedTopics({ imageAssetId: asset.id }); setImageMessage(processed.resized ? `Imagem otimizada de ${formatImageBytes(processed.originalSize)} para ${formatImageBytes(processed.finalSize)}.` : `Imagem preservada com ${formatImageBytes(processed.finalSize)}.`) } catch (reason) { setImageMessage(''); setSaveState('error'); setSaveError(reason instanceof Error ? reason.message : 'Não foi possível salvar a imagem.') }

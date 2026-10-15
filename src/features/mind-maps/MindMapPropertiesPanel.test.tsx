@@ -17,3 +17,12 @@ test('expõe estilos completos do tópico e da conexão', () => {
   fireEvent.change(screen.getByLabelText('Formato da conexão'), { target: { value: 'straight' } }); expect(onConnection).toHaveBeenCalledWith('edge', { shape: 'straight' })
   fireEvent.click(screen.getByRole('button', { name: 'Seta inicial' })); expect(onConnection).toHaveBeenCalledWith('edge', { startMarker: true })
 })
+
+test('mantém o formulário aberto em erro e entrega somente link seguro', () => {
+  const onAddLink = vi.fn()
+  render(<MindMapPropertiesPanel document={document} selected={document.topics[0]} advancedEnabled imageMessage="" onClose={vi.fn()} onTheme={vi.fn()} onTopic={vi.fn()} onConnection={vi.fn()} onRemoveConnection={vi.fn()} onAddLink={onAddLink} onUploadImage={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar link' })); fireEvent.change(screen.getByPlaceholderText('https://exemplo.com'), { target: { value: 'javascript:alert(1)' } }); fireEvent.click(screen.getByRole('button', { name: 'Salvar link' }))
+  expect(screen.getByRole('alert')).toHaveTextContent('http ou https'); expect(onAddLink).not.toHaveBeenCalled()
+  fireEvent.change(screen.getByPlaceholderText('https://exemplo.com'), { target: { value: 'https://example.com/guia' } }); fireEvent.change(screen.getByPlaceholderText('Usar domínio'), { target: { value: 'Guia seguro' } }); fireEvent.click(screen.getByRole('button', { name: 'Salvar link' }))
+  expect(onAddLink).toHaveBeenCalledWith({ label: 'Guia seguro', url: 'https://example.com/guia' }); expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})

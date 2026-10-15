@@ -107,6 +107,13 @@ test('indica se a busca encontrou conteúdo na nota sem expor o texto inteiro', 
   expect(screen.getByText('Nota · correspondência encontrada')).toBeInTheDocument(); expect(screen.queryByText('segredo pesquisável extenso')).not.toBeInTheDocument()
 })
 
+test('adiciona link pelo painel e persiste somente a versão validada', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Propriedades' })); fireEvent.click(screen.getByRole('button', { name: 'Adicionar link' })); fireEvent.change(screen.getByPlaceholderText('https://exemplo.com'), { target: { value: 'https://example.com/referencia' } }); fireEvent.click(screen.getByRole('button', { name: 'Salvar link' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: [expect.objectContaining({ links: [expect.objectContaining({ label: 'example.com', url: 'https://example.com/referencia' })] })] })))
+})
+
 test('seleciona múltiplos tópicos com Shift e arraste no canvas', async () => {
   vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
   render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
