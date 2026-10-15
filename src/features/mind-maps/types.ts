@@ -7,6 +7,9 @@ export interface MindMapTopicStyle {
   background?: string
   color?: string
   borderColor?: string
+  borderWidth?: number
+  borderRadius?: number
+  textAlign?: 'left' | 'center' | 'right'
   bold?: boolean
   italic?: boolean
   fontScale?: number
@@ -55,6 +58,10 @@ export interface MindMapConnection {
   width: number
   dashed: boolean
   directed: boolean
+  shape?: 'curve' | 'straight'
+  startMarker?: boolean
+  endMarker?: boolean
+  curveOffset?: number
   createdAt: number
   updatedAt: number
 }

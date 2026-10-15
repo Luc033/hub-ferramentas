@@ -5,15 +5,21 @@ const document: MindMapDocument = {
   map: { id: 'map', schemaVersion: 1, name: 'Plano <script>', rootId: 'root', layout: 'radial', theme: 'minimal', viewport: { panX: 0, panY: 0, zoom: 1 }, createdAt: 1, updatedAt: 1 },
   topics: [
     { id: 'root', mapId: 'map', parentId: null, order: 0, text: 'Raiz <script>alert(1)</script>', collapsed: false, createdAt: 1, updatedAt: 1 },
-    { id: 'child', mapId: 'map', parentId: 'root', order: 0, text: 'Filho', note: 'privado', collapsed: false, createdAt: 2, updatedAt: 2 },
+    { id: 'child', mapId: 'map', parentId: 'root', order: 0, text: 'Filho', note: 'privado', collapsed: false, style: { borderWidth: 4, borderRadius: 8, textAlign: 'left', fontScale: 1.2, italic: true }, createdAt: 2, updatedAt: 2 },
   ],
-  connections: [{ id: 'connection', mapId: 'map', sourceId: 'root', targetId: 'child', label: '<img>', color: '#a78bfa', width: 2, dashed: false, directed: true, createdAt: 2, updatedAt: 2 }],
+  connections: [{ id: 'connection', mapId: 'map', sourceId: 'root', targetId: 'child', label: '<img>', color: '#a78bfa', width: 2, dashed: false, directed: true, shape: 'straight', startMarker: true, endMarker: true, curveOffset: 40, createdAt: 2, updatedAt: 2 }],
 }
 
 test('exporta e valida o formato nativo versionado', async () => {
   const file = await createMindMapFile(document, [])
   const parsed = parseMindMapFile(JSON.stringify(file))
   expect(parsed).toMatchObject({ format: 'hub-mind-map', version: 1, integrity: { topics: 2, connections: 1, assets: 0 } })
+  expect(parsed.topics[1].style).toMatchObject({ borderWidth: 4, textAlign: 'left' }); expect(parsed.connections[0]).toMatchObject({ shape: 'straight', startMarker: true })
+})
+
+test('continua aceitando arquivos anteriores sem os campos visuais novos', async () => {
+  const file = await createMindMapFile(document, []); file.topics = file.topics.map(({ style: _style, ...topic }) => topic); file.connections = file.connections.map(({ shape: _shape, startMarker: _start, endMarker: _end, curveOffset: _curve, ...connection }) => connection)
+  expect(() => parseMindMapFile(JSON.stringify(file))).not.toThrow()
 })
 
 test('inclui imagens locais no arquivo e restaura blobs com ids novos', async () => {
@@ -40,4 +46,5 @@ test('gera SVG autocontido e mantém texto não confiável inerte', async () => 
   const svg = await renderMindMapSvg(document, [], 'transparent')
   expect(svg).toContain('&lt;script&gt;'); expect(svg).toContain('&lt;img&gt;'); expect(svg).not.toContain('<script>'); expect(svg).not.toContain('onerror=')
   expect(svg).toContain('fill="none"')
+  expect(svg).toContain('marker-start="url(#arrow)"'); expect(svg).toContain('rx="8"'); expect(svg).toContain('font-style="italic"')
 })

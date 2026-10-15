@@ -11,6 +11,7 @@ test('valida raiz única, pais existentes e ciclos', () => {
   expect(() => validateMindMapDocument(map, [topic('root', null, 0), topic('a', 'b', 0), topic('b', 'a', 0)])).toThrow('ciclo')
   expect(() => validateMindMapDocument(map, [topic('root', null, 0), topic('a', 'root', 0), topic('b', 'root', 0)])).toThrow('ordem')
   expect(() => validateMindMapDocument(map, [{ ...topic('root', null, 0), position: { x: Number.NaN, y: 0 } }])).toThrow('Estrutura')
+  expect(() => validateMindMapDocument(map, [{ ...topic('root', null, 0), style: { borderWidth: 99 } }])).toThrow('Estrutura')
 })
 
 test('move e reordena tópicos sem permitir ciclos ou mover a raiz', () => {

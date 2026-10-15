@@ -15,7 +15,8 @@ export function validateMindMapDocument(map: MindMap, topics: MindMapTopic[]) {
   const ids = new Set<string>()
   for (const topic of topics) {
     const validPosition = topic.position === undefined || Number.isFinite(topic.position.x) && Number.isFinite(topic.position.y)
-    if (!topic.id || topic.mapId !== map.id || ids.has(topic.id) || !Number.isInteger(topic.order) || topic.order < 0 || !topic.text.trim() || topic.text.length > 500 || typeof topic.collapsed !== 'boolean' || !validPosition) throw new Error('Estrutura de tópicos inválida.')
+    const style = topic.style; const validStyle = style === undefined || (style.borderWidth === undefined || Number.isFinite(style.borderWidth) && style.borderWidth >= 0 && style.borderWidth <= 8) && (style.borderRadius === undefined || Number.isFinite(style.borderRadius) && style.borderRadius >= 0 && style.borderRadius <= 40) && (style.textAlign === undefined || ['left', 'center', 'right'].includes(style.textAlign)) && (style.fontScale === undefined || Number.isFinite(style.fontScale) && style.fontScale >= .7 && style.fontScale <= 2)
+    if (!topic.id || topic.mapId !== map.id || ids.has(topic.id) || !Number.isInteger(topic.order) || topic.order < 0 || !topic.text.trim() || topic.text.length > 500 || typeof topic.collapsed !== 'boolean' || !validPosition || !validStyle) throw new Error('Estrutura de tópicos inválida.')
     ids.add(topic.id)
   }
   const root = topics.find((topic) => topic.id === map.rootId)

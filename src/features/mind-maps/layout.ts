@@ -57,17 +57,25 @@ export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string,
     descendants.forEach((child) => { const span = heights.get(child.id) ?? topicHeight(child.text, false); placeFloating(child, depth + 1, x + TOPIC_WIDTH + LEVEL_GAP, cursor + span / 2); cursor += span + SIBLING_GAP })
   }
   floating.forEach((topic, index) => { measure(topic.id); placeFloating(topic, 0, 380, index * 150) })
-  if (mode === 'right' || mode === 'orgchart') {
-    const rooted = [...positioned.values()].filter((item) => byId.get(item.id)?.parentId !== null || item.id === rootId)
-    const levels = new Map<number, TopicLayout[]>(); rooted.forEach((item) => levels.set(item.depth, [...(levels.get(item.depth) ?? []), item]))
-    if (mode === 'right') levels.forEach((items, depth) => {
-      const total = items.reduce((sum, item) => sum + item.height, 0) + Math.max(0, items.length - 1) * SIBLING_GAP; let y = -total / 2
-      items.forEach((item) => { positioned.set(item.id, { ...item, x: depth * (TOPIC_WIDTH + LEVEL_GAP) - (depth ? 0 : ROOT_WIDTH / 2), y, side: depth ? 1 : 0 }); y += item.height + SIBLING_GAP })
-    })
-    if (mode === 'orgchart') levels.forEach((items, depth) => {
-      const total = items.reduce((sum, item) => sum + item.width, 0) + Math.max(0, items.length - 1) * 44; let x = -total / 2
-      items.forEach((item) => { positioned.set(item.id, { ...item, x, y: depth * 130 - item.height / 2, side: 0 }); x += item.width + 44 })
-    })
+  if (mode === 'right') {
+    const placeRight = (id: string, depth: number, centerY: number) => {
+      const topic = byId.get(id)!; const width = id === rootId ? ROOT_WIDTH : TOPIC_WIDTH; const height = topicHeight(topic.text, id === rootId)
+      positioned.set(id, { id, x: depth ? ROOT_WIDTH / 2 + LEVEL_GAP + (depth - 1) * (TOPIC_WIDTH + LEVEL_GAP) : -ROOT_WIDTH / 2, y: centerY - height / 2, width, height, side: depth ? 1 : 0, depth })
+      const descendants = children.get(id) ?? []; const total = descendants.reduce((sum, child) => sum + (heights.get(child.id) ?? topicHeight(child.text, false)), 0) + Math.max(0, descendants.length - 1) * SIBLING_GAP; let cursor = centerY - total / 2
+      descendants.forEach((child) => { const span = heights.get(child.id) ?? topicHeight(child.text, false); placeRight(child.id, depth + 1, cursor + span / 2); cursor += span + SIBLING_GAP })
+    }
+    placeRight(rootId, 0, 0)
+  } else if (mode === 'orgchart') {
+    const subtreeWidths = new Map<string, number>()
+    const measureWidth = (id: string): number => { const own = id === rootId ? ROOT_WIDTH : TOPIC_WIDTH; const descendants = children.get(id) ?? []; const total = descendants.length ? descendants.reduce((sum, child) => sum + measureWidth(child.id), 0) + (descendants.length - 1) * 44 : own; const width = Math.max(own, total); subtreeWidths.set(id, width); return width }
+    measureWidth(rootId)
+    const placeOrg = (id: string, depth: number, centerX: number) => {
+      const topic = byId.get(id)!; const width = id === rootId ? ROOT_WIDTH : TOPIC_WIDTH; const height = topicHeight(topic.text, id === rootId)
+      positioned.set(id, { id, x: centerX - width / 2, y: depth * 130 - height / 2, width, height, side: 0, depth })
+      const descendants = children.get(id) ?? []; const total = descendants.reduce((sum, child) => sum + (subtreeWidths.get(child.id) ?? TOPIC_WIDTH), 0) + Math.max(0, descendants.length - 1) * 44; let cursor = centerX - total / 2
+      descendants.forEach((child) => { const span = subtreeWidths.get(child.id) ?? TOPIC_WIDTH; placeOrg(child.id, depth + 1, cursor + span / 2); cursor += span + 44 })
+    }
+    placeOrg(rootId, 0, 0)
   } else if (mode === 'manual') {
     positioned.forEach((value, id) => { const position = byId.get(id)?.position; if (position) positioned.set(id, { ...value, x: position.x, y: position.y }) })
   }
@@ -83,4 +91,11 @@ export function connectionPath(parent: TopicLayout, child: TopicLayout) {
   const endX = right ? child.x : child.x + child.width
   const startY = parent.y + parent.height / 2; const endY = child.y + child.height / 2; const bend = Math.abs(endX - startX) * .5
   return `M ${startX} ${startY} C ${startX + (right ? bend : -bend)} ${startY}, ${endX + (right ? -bend : bend)} ${endY}, ${endX} ${endY}`
+}
+
+export function transverseConnectionPath(source: TopicLayout, target: TopicLayout, shape: 'curve' | 'straight' = 'curve', curveOffset = -80) {
+  const x1 = source.x + source.width / 2; const y1 = source.y + source.height / 2
+  const x2 = target.x + target.width / 2; const y2 = target.y + target.height / 2
+  if (shape === 'straight') return `M ${x1} ${y1} L ${x2} ${y2}`
+  return `M ${x1} ${y1} Q ${(x1 + x2) / 2} ${(y1 + y2) / 2 + curveOffset} ${x2} ${y2}`
 }

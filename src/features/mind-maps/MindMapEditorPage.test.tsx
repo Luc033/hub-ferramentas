@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { vi } from 'vitest'
 import { mindMapsRepository } from '../../services/db/mindMapsRepository'
@@ -75,4 +75,33 @@ test('não mostra Salvo após quota excedida e oferece exportação de recupera�
   render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
   fireEvent.keyDown(await screen.findByLabelText('Canvas do mapa mental'), { key: 'Tab' })
   expect(await screen.findByText(/armazenamento local está cheio/)).toBeInTheDocument(); expect(screen.getByRole('button', { name: 'Exportar recuperação' })).toBeInTheDocument(); expect(screen.getByText('Falha ao salvar')).toBeInTheDocument()
+})
+
+test('cria tópico flutuante no centro visível sem exigir seleção', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Criar tópico flutuante no centro' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ parentId: null, manualPosition: true, position: expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }) })]) })))
+})
+
+test('abre ajuda pelo atalho de interrogação e fecha com Escape', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  const canvas = (render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>), await screen.findByLabelText('Canvas do mapa mental'))
+  fireEvent.keyDown(canvas, { key: '?' }); expect(screen.getByRole('dialog', { name: 'Atalhos do editor' })).toBeInTheDocument(); fireEvent.keyDown(window, { key: 'Escape' }); await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+test('edita e reordena tópicos diretamente pelo Outline', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Alternar Outline' })); const outline = screen.getByLabelText('Outline do mapa'); fireEvent.click(within(outline).getByRole('button', { name: /^Primeiro$/ })); fireEvent.doubleClick(within(outline).getByRole('button', { name: /^Primeiro$/ })); const input = screen.getByLabelText('Editar Primeiro no Outline'); fireEvent.change(input, { target: { value: 'Primeiro revisado' } }); fireEvent.blur(input)
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ id: 'a', text: 'Primeiro revisado' })]) })))
+  await waitFor(() => expect(screen.getByText('Salvo')).toBeInTheDocument()); fireEvent.click(within(outline).getByRole('button', { name: 'Mover para baixo' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ id: 'a', order: 1 })]) })))
+})
+
+test('indica se a busca encontrou conteúdo na nota sem expor o texto inteiro', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue({ ...documentWithChildren, topics: documentWithChildren.topics.map((topic) => topic.id === 'a' ? { ...topic, note: 'segredo pesquisável extenso' } : topic) }); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined); vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Buscar tópicos' })); fireEvent.change(screen.getByPlaceholderText('Digite um termo'), { target: { value: 'segredo' } })
+  expect(screen.getByText('Nota · correspondência encontrada')).toBeInTheDocument(); expect(screen.queryByText('segredo pesquisável extenso')).not.toBeInTheDocument()
 })

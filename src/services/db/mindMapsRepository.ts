@@ -17,7 +17,7 @@ const sanitizeConnections = (document: MindMapDocument) => {
   return (document.connections ?? []).filter((item) => {
     const valid = item.mapId === document.map.id && topicIds.has(item.sourceId) && topicIds.has(item.targetId) && item.sourceId !== item.targetId && !ids.has(item.id)
     if (valid) ids.add(item.id); return valid
-  }).map((item) => ({ ...item, label: item.label.slice(0, 120), width: Math.min(6, Math.max(1, item.width || 2)) }))
+  }).map((item) => ({ ...item, label: item.label.slice(0, 120), width: Math.min(6, Math.max(1, item.width || 2)), shape: item.shape === 'straight' ? 'straight' as const : 'curve' as const, startMarker: Boolean(item.startMarker), endMarker: item.endMarker ?? item.directed, curveOffset: Math.min(240, Math.max(-240, item.curveOffset ?? -80)) }))
 }
 
 export const mindMapsRepository = {
