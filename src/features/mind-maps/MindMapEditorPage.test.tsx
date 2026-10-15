@@ -160,3 +160,12 @@ test('bloqueia conexão duplicada no sentido inverso com feedback visível', asy
   fireEvent.click(await screen.findByRole('button', { name: /Tópico: Primeiro/ })); fireEvent.click(screen.getByRole('button', { name: 'Conectar' })); fireEvent.click(screen.getByRole('button', { name: /Tópico: Plano/ }))
   expect(screen.getByRole('alert')).toHaveTextContent('Já existe uma conexão entre esses tópicos.'); expect(save).not.toHaveBeenCalled()
 })
+
+test('sair do modo foco restaura viewport e seleção anteriores', async () => {
+  const nested: MindMapDocument = { ...documentWithChildren, topics: [...documentWithChildren.topics, { id: 'child', mapId: 'map', parentId: 'a', order: 0, text: 'Detalhe', collapsed: false, createdAt: 4, updatedAt: 4 }] }
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(nested); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: /Tópico: Primeiro/ })); fireEvent.click(screen.getByRole('button', { name: 'Focar' })); expect(screen.queryByRole('button', { name: /Tópico: Plano/ })).not.toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: /Tópico: Detalhe/ }))
+  const canvas = screen.getByLabelText('Canvas do mapa mental'); fireEvent.keyDown(canvas, { key: '+' }); expect(screen.getByText('110%')).toBeInTheDocument(); fireEvent.keyDown(canvas, { key: 'Escape' })
+  expect(screen.getByText('100%')).toBeInTheDocument(); expect(screen.getByRole('button', { name: /Tópico: Plano/ })).toBeInTheDocument(); expect(screen.getByRole('button', { name: /Tópico: Primeiro/ })).toHaveAttribute('aria-pressed', 'true'); expect(screen.getByRole('button', { name: /Tópico: Detalhe/ })).toHaveAttribute('aria-pressed', 'false'); expect(screen.getByRole('button', { name: 'Focar' })).toBeInTheDocument()
+})
