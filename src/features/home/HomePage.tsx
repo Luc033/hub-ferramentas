@@ -13,6 +13,7 @@ import { usePomodoro } from '../pomodoro/usePomodoro'
 import { pomodoroService } from '../pomodoro/pomodoroService'
 import { tasksRepository } from '../../services/db/tasksRepository'
 import { notesRepository } from '../../services/db/notesRepository'
+import { mindMapsRepository } from '../../services/db/mindMapsRepository'
 import { useFocusSound } from '../../services/audio/useFocusSound'
 import { focusSoundService } from '../../services/audio/focusSoundService'
 import { useSettings } from '../../app/providers/SettingsProvider'
@@ -34,7 +35,7 @@ const accents = {
 }
 
 export interface TasksSummary { enabled: boolean; total: number; todo: number; doing: number; completedToday: number }
-export interface NotesSummary { enabled: boolean; notes: number; nodes: number; lastUpdate: string }
+export interface NotesSummary { enabled: boolean; notes: number; nodes: number; maps: number; lastUpdate: string }
 
 export function ToolCard({ tool, habitSummary, tasksSummary, notesSummary, error, onRetry }: { tool: ToolDefinition; habitSummary: HabitSummary | null; tasksSummary: TasksSummary | null; notesSummary: NotesSummary | null; error?: string; onRetry: () => void }) {
   const clock = useClock()
@@ -53,7 +54,7 @@ export function ToolCard({ tool, habitSummary, tasksSummary, notesSummary, error
         : tool.widget === 'tasks'
           ? tasksSummary === null ? 'Carregando tarefas…' : tasksSummary.enabled ? tasksSummary.total === 0 ? 'Nenhuma tarefa' : `${tasksSummary.todo} a fazer · ${tasksSummary.doing} fazendo · ${tasksSummary.completedToday} concluída(s) hoje` : 'Kanban ainda não habilitado'
           : tool.widget === 'notes'
-            ? notesSummary === null ? 'Carregando anotações…' : notesSummary.enabled ? notesSummary.notes ? `${notesSummary.notes} nota(s) · ${notesSummary.nodes} nós · ${notesSummary.lastUpdate}` : `Comece uma anotação · ${notesSummary.nodes} nós` : 'Área criativa ainda não habilitada'
+            ? notesSummary === null ? 'Carregando anotações…' : notesSummary.enabled ? notesSummary.notes || notesSummary.maps ? `${notesSummary.notes} nota(s) · ${notesSummary.maps} mapa(s) · ${notesSummary.nodes} nós livres · ${notesSummary.lastUpdate}` : 'Comece uma anotação ou crie um mapa' : 'Área criativa ainda não habilitada'
             : tool.widget === 'sounds'
               ? focusSound.source ? `${focusSound.status === 'playing' ? 'Tocando' : focusSound.status === 'loading' ? 'Conectando' : focusSound.status === 'error' ? 'Falha' : 'Pausado'} · ${focusSound.source.title}` : 'Desligado'
               : null
@@ -91,8 +92,8 @@ export default function HomePage() {
     return habitsRepository.subscribe(() => { void load() })
   }, [todayKey, revision, retryRevision.habits])
   useEffect(() => {
-    const load = async () => { try { const enabled = await notesRepository.isEnabled(); if (!enabled) { setNotesSummary({ enabled, notes: 0, nodes: 0, lastUpdate: 'Comece uma anotação' }); setWidgetErrors((current) => ({ ...current, notes: undefined })); return } const [notes, nodes] = await Promise.all([notesRepository.getNotes(), notesRepository.getNodes()]); setNotesSummary({ enabled, notes: notes.length, nodes: nodes.length, lastUpdate: describeLastNoteUpdate(notes, todayKey) }); setWidgetErrors((current) => ({ ...current, notes: undefined })) } catch (reason) { setNotesSummary(null); setWidgetErrors((current) => ({ ...current, notes: reason instanceof Error ? reason.message : 'Falha ao carregar anotações.' })) } }
-    void load(); return notesRepository.subscribe(() => { void load() })
+    const load = async () => { try { const [notesEnabled, mapsEnabled] = await Promise.all([notesRepository.isEnabled(), mindMapsRepository.isEnabled()]); if (!notesEnabled && !mapsEnabled) { setNotesSummary({ enabled: false, notes: 0, nodes: 0, maps: 0, lastUpdate: 'Comece uma anotação' }); setWidgetErrors((current) => ({ ...current, notes: undefined })); return } const [notes, nodes, maps] = await Promise.all([notesEnabled ? notesRepository.getNotes() : [], notesEnabled ? notesRepository.getNodes() : [], mapsEnabled ? mindMapsRepository.list() : []]); const latestMap = maps.length ? Math.max(...maps.map((map) => map.updatedAt)) : 0; const noteText = describeLastNoteUpdate(notes, todayKey); const lastUpdate = latestMap > Math.max(0, ...notes.map((note) => note.updatedAt)) ? `Mapa atualizado ${new Date(latestMap).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')}` : noteText; setNotesSummary({ enabled: true, notes: notes.length, nodes: nodes.length, maps: maps.length, lastUpdate }); setWidgetErrors((current) => ({ ...current, notes: undefined })) } catch (reason) { setNotesSummary(null); setWidgetErrors((current) => ({ ...current, notes: reason instanceof Error ? reason.message : 'Falha ao carregar anotações.' })) } }
+    void load(); const unsubscribeNotes = notesRepository.subscribe(() => { void load() }); const unsubscribeMaps = mindMapsRepository.subscribe(() => { void load() }); return () => { unsubscribeNotes(); unsubscribeMaps() }
   }, [revision, retryRevision.notes, todayKey])
   useEffect(() => {
     const load = async () => {

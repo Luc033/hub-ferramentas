@@ -43,3 +43,11 @@ test('aceita preferências completas e rejeita valores fora dos limites', () => 
   expect(() => parseBackup(JSON.stringify({ ...data, preferences: { settings: { ...settings, alarmVolume: 101 } } }))).toThrow('preferências')
   expect(() => parseBackup(JSON.stringify({ ...data, preferences: { settings: { ...settings, focusesPerCycle: 13 } } }))).toThrow('preferências')
 })
+
+test('valida a integridade das árvores de mapas mentais no backup', () => {
+  const map = { id: 'map', schemaVersion: 1, name: 'Plano', rootId: 'root', layout: 'radial', viewport: { panX: 0, panY: 0, zoom: 1 }, createdAt: 1, updatedAt: 1 }
+  const root = { id: 'root', mapId: 'map', parentId: null, order: 0, text: '<img onerror=alert(1)>', collapsed: false, createdAt: 1, updatedAt: 1 }
+  const data = { schemaVersion: 6, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [], mindMaps: [map], mindMapTopics: [root] } }
+  expect(parseBackup(JSON.stringify(data)).records.mindMapTopics).toEqual([root])
+  expect(() => parseBackup(JSON.stringify({ ...data, records: { habits: [], mindMaps: [map], mindMapTopics: [{ ...root, parentId: 'missing' }] } }))).toThrow()
+})

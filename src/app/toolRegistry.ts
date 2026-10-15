@@ -20,6 +20,6 @@ export const toolRegistry: readonly ToolDefinition[] = [
   { id: 'pomodoro', title: 'Foco Pomodoro', description: 'Gerencie períodos de trabalho e pausas usando a técnica Pomodoro.', path: '/pomodoro', icon: Timer, accent: 'rose', status: 'available', widget: 'pomodoro' },
   { id: 'timer', title: 'Temporizador', description: 'Contagem regressiva com presets, entrada personalizada e alarme sonoro.', path: '/timer', icon: Clock3, accent: 'cyan', status: 'available', widget: 'timer' },
   { id: 'tasks', title: 'Kanban', description: 'Organize tarefas em um quadro visual simples e acessível.', path: '/tasks', icon: ListTodo, accent: 'amber', status: 'available', widget: 'tasks' },
-  { id: 'notes', title: 'Anotações / Mapa Mental', description: 'Capture ideias e organize conexões em um quadro livre.', path: '/notes', icon: Network, accent: 'violet', status: 'available', widget: 'notes' },
+  { id: 'notes', title: 'Anotações / Mapa Mental', description: 'Capture ideias em notas, mapas hierárquicos e quadros visuais.', path: '/notes', icon: Network, accent: 'violet', status: 'available', widget: 'notes' },
   { id: 'sounds', title: 'Sons de Foco', description: 'Crie um ambiente sonoro para concentração e descanso.', path: '/sounds', icon: Headphones, accent: 'blue', status: 'available', widget: 'sounds' },
 ]

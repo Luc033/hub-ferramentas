@@ -1,9 +1,11 @@
 import type { Habit, HabitCheckin } from '../../features/habits/types'
-import { BOARDS_STORE, CHECKINS_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, HABITS_STORE, NODES_STORE, NOTES_STORE, openDatabase, requestResult, transactionDone } from '../db/indexedDb'
+import { BOARDS_STORE, CHECKINS_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, HABITS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, NODES_STORE, NOTES_STORE, openDatabase, requestResult, transactionDone } from '../db/indexedDb'
 import { TASKS_STORE } from '../db/indexedDb'
 import type { Task } from '../../features/tasks/types'
 import type { Board, MindEdge, MindNode, Note } from '../../features/notes/types'
 import type { FocusPlaylist } from '../../features/focus-sounds/types'
+import type { MindMap, MindMapTopic } from '../../features/mind-maps/types'
+import { validateMindMapDocument } from '../../features/mind-maps/tree'
 import { applyStoredSettings, normalizeImportedSettings, readStoredSettings, type Settings } from '../settings/settingsStorage'
 
 export interface HubBackup {
@@ -41,6 +43,16 @@ const isNode = (value: unknown): value is MindNode => Boolean(value && typeof va
 const isEdge = (value: unknown): value is MindEdge => Boolean(value && typeof value === 'object' && typeof (value as MindEdge).id === 'string' && typeof (value as MindEdge).boardId === 'string' && typeof (value as MindEdge).sourceId === 'string' && typeof (value as MindEdge).targetId === 'string')
 const hasSoundCloudPlaylistUrl = (value: unknown) => { try { const url = new URL(String(value)); const parts = url.pathname.split('/').filter(Boolean); return url.protocol === 'https:' && ['soundcloud.com', 'www.soundcloud.com'].includes(url.hostname.toLowerCase()) && parts.length >= 3 && parts[1] === 'sets' } catch { return false } }
 const isFocusPlaylist = (value: unknown): value is FocusPlaylist => Boolean(value && typeof value === 'object' && typeof (value as FocusPlaylist).id === 'string' && hasSoundCloudPlaylistUrl((value as FocusPlaylist).url) && typeof (value as FocusPlaylist).title === 'string' && typeof (value as FocusPlaylist).author === 'string' && ['Lo-fi', 'Chillhop', 'Jazzhop', 'Outro'].includes(String((value as FocusPlaylist).category)) && isFiniteNumber((value as FocusPlaylist).createdAt))
+const isMindMap = (value: unknown): value is MindMap => {
+  if (!value || typeof value !== 'object') return false
+  const item = value as MindMap
+  return typeof item.id === 'string' && item.schemaVersion === 1 && typeof item.name === 'string' && item.name.trim().length > 0 && item.name.length <= 100 && typeof item.rootId === 'string' && item.layout === 'radial' && Boolean(item.viewport) && isFiniteNumber(item.viewport.panX) && isFiniteNumber(item.viewport.panY) && isFiniteNumber(item.viewport.zoom) && item.viewport.zoom >= .25 && item.viewport.zoom <= 3 && isFiniteNumber(item.createdAt) && isFiniteNumber(item.updatedAt)
+}
+const isMindMapTopic = (value: unknown): value is MindMapTopic => {
+  if (!value || typeof value !== 'object') return false
+  const item = value as MindMapTopic
+  return typeof item.id === 'string' && typeof item.mapId === 'string' && (item.parentId === null || typeof item.parentId === 'string') && Number.isInteger(item.order) && item.order >= 0 && typeof item.text === 'string' && item.text.length <= 500 && typeof item.collapsed === 'boolean' && isFiniteNumber(item.createdAt) && isFiniteNumber(item.updatedAt)
+}
 
 export function parseBackup(text: string): HubBackup {
   let parsed: unknown
@@ -63,6 +75,13 @@ export function parseBackup(text: string): HubBackup {
   if (backup.records.nodes && (!Array.isArray(backup.records.nodes) || !backup.records.nodes.every(isNode))) throw new Error('Os nós do backup são inválidos.')
   if (backup.records.edges && (!Array.isArray(backup.records.edges) || !backup.records.edges.every(isEdge))) throw new Error('As conexões do backup são inválidas.')
   if (backup.records.focusPlaylists && (!Array.isArray(backup.records.focusPlaylists) || !backup.records.focusPlaylists.every(isFocusPlaylist))) throw new Error('As playlists do backup são inválidas.')
+  if (backup.records.mindMaps && (!Array.isArray(backup.records.mindMaps) || !backup.records.mindMaps.every(isMindMap))) throw new Error('Os mapas mentais do backup são inválidos.')
+  if (backup.records.mindMapTopics && (!Array.isArray(backup.records.mindMapTopics) || !backup.records.mindMapTopics.every(isMindMapTopic))) throw new Error('Os tópicos dos mapas mentais são inválidos.')
+  if (backup.records.mindMaps || backup.records.mindMapTopics) {
+    const maps = (backup.records.mindMaps ?? []) as MindMap[]; const topics = (backup.records.mindMapTopics ?? []) as MindMapTopic[]
+    if (topics.some((topic) => !maps.some((map) => map.id === topic.mapId))) throw new Error('Há tópicos sem mapa no backup.')
+    maps.forEach((map) => validateMindMapDocument(map, topics.filter((topic) => topic.mapId === map.id)))
+  }
   if (Object.values(backup.records).some((records) => records !== undefined && !Array.isArray(records))) throw new Error('Uma store do backup possui formato inválido.')
   if (backup.preferences !== undefined) {
     if (!backup.preferences || typeof backup.preferences !== 'object') throw new Error('As preferências do backup são inválidas.')
@@ -103,7 +122,8 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
   if (backup.records.tasks?.length && !db.objectStoreNames.contains(TASKS_STORE)) throw new Error('Habilite o Kanban antes de importar tarefas.')
   if ([backup.records.notes, backup.records.boards, backup.records.nodes, backup.records.edges].some((records) => records?.length) && ![NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite Anotações antes de importar dados criativos.')
   if (backup.records.focusPlaylists?.length && !db.objectStoreNames.contains(FOCUS_PLAYLISTS_STORE)) throw new Error('Abra Sons de Foco antes de importar playlists.')
-  const optionalStores = [CHECKINS_STORE, TASKS_STORE, NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE].filter((name) => db.objectStoreNames.contains(name))
+  if ([backup.records.mindMaps, backup.records.mindMapTopics].some((records) => records?.length) && ![MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite Mapas Mentais antes de importar esses dados.')
+  const optionalStores = [CHECKINS_STORE, TASKS_STORE, NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE].filter((name) => db.objectStoreNames.contains(name))
   const stores = [HABITS_STORE, ...optionalStores]
   const transaction = db.transaction(stores, 'readwrite')
   const habitsStore = transaction.objectStore(HABITS_STORE)
@@ -114,6 +134,8 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
   const nodesStore = stores.includes(NODES_STORE) ? transaction.objectStore(NODES_STORE) : null
   const edgesStore = stores.includes(EDGES_STORE) ? transaction.objectStore(EDGES_STORE) : null
   const focusPlaylistsStore = stores.includes(FOCUS_PLAYLISTS_STORE) ? transaction.objectStore(FOCUS_PLAYLISTS_STORE) : null
+  const mindMapsStore = stores.includes(MIND_MAPS_STORE) ? transaction.objectStore(MIND_MAPS_STORE) : null
+  const mindMapTopicsStore = stores.includes(MIND_MAP_TOPICS_STORE) ? transaction.objectStore(MIND_MAP_TOPICS_STORE) : null
   let imported = 0
   let ignored = 0
 
@@ -121,7 +143,7 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
     habitsStore.clear()
     checkinsStore?.clear()
     tasksStore?.clear()
-    notesStore?.clear(); boardsStore?.clear(); nodesStore?.clear(); edgesStore?.clear(); focusPlaylistsStore?.clear()
+    notesStore?.clear(); boardsStore?.clear(); nodesStore?.clear(); edgesStore?.clear(); focusPlaylistsStore?.clear(); mindMapsStore?.clear(); mindMapTopicsStore?.clear()
     backup.records.habits.forEach((record) => { habitsStore.put(record); imported++ })
     backup.records.habitCheckins?.forEach((record) => { checkinsStore?.put(record); imported++ })
     backup.records.tasks?.forEach((record) => { tasksStore?.put(record); imported++ })
@@ -130,6 +152,8 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
     backup.records.nodes?.forEach((record) => { nodesStore?.put(record); imported++ })
     backup.records.edges?.forEach((record) => { edgesStore?.put(record); imported++ })
     backup.records.focusPlaylists?.forEach((record) => { focusPlaylistsStore?.put(record); imported++ })
+    backup.records.mindMaps?.forEach((record) => { mindMapsStore?.put(record); imported++ })
+    backup.records.mindMapTopics?.forEach((record) => { mindMapTopicsStore?.put(record); imported++ })
   } else {
     for (const record of backup.records.habits) {
       const existing = await requestResult(habitsStore.get(record.id))
@@ -154,12 +178,21 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
         else { store!.add(record); imported++ }
       }
     }
+    for (const map of (backup.records.mindMaps ?? []) as MindMap[]) {
+      const mapTopics = ((backup.records.mindMapTopics ?? []) as MindMapTopic[]).filter((topic) => topic.mapId === map.id)
+      const existing = mindMapsStore ? await requestResult(mindMapsStore.get(map.id)) : true
+      if (existing) ignored += 1 + mapTopics.length
+      else {
+        mindMapsStore!.add(map); mapTopics.forEach((topic) => mindMapTopicsStore!.add(topic)); imported += 1 + mapTopics.length
+      }
+    }
   }
   await transactionDone(transaction)
   window.dispatchEvent(new Event('habits:changed'))
   window.dispatchEvent(new Event('tasks:changed'))
   window.dispatchEvent(new Event('notes:changed'))
   window.dispatchEvent(new Event('focus-playlists:changed'))
+  window.dispatchEvent(new Event('mind-maps:changed'))
   let preferencesImported = false
   let preferencesError: string | undefined
   if (backup.preferences?.settings) {

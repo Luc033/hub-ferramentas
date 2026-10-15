@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach } from 'vitest'
-import { AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToProductivitySchema } from './indexedDb'
+import { AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_SCHEMA_VERSION, MIND_MAP_TOPICS_STORE, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToMindMapSchema, upgradeToProductivitySchema } from './indexedDb'
 
 async function deleteTestDatabase() {
   closeDatabase()
@@ -65,4 +65,14 @@ test('adiciona biblioteca de áudio preservando hábitos e stores anteriores', a
   expect(upgraded.version).toBe(AUDIO_SCHEMA_VERSION)
   expect(upgraded.objectStoreNames.contains(FOCUS_PLAYLISTS_STORE)).toBe(true)
   expect(await new Promise((resolve, reject) => { const request = upgraded.transaction('habits').objectStore('habits').get('legacy'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })).toMatchObject({ name: 'Legado' })
+})
+
+test('adiciona mapas mentais em stores próprias sem reinterpretar o quadro livre', async () => {
+  await upgradeToCreativeSchema()
+  const before = await openDatabase(); const tx = before.transaction(NODES_STORE, 'readwrite'); tx.objectStore(NODES_STORE).add({ id: 'legacy-node', boardId: 'main', text: 'Livre', x: 10, y: 20, createdAt: 1, updatedAt: 1 }); await transactionDone(tx)
+  await upgradeToMindMapSchema()
+  const upgraded = await openDatabase()
+  expect(upgraded.version).toBe(MIND_MAP_SCHEMA_VERSION)
+  expect(upgraded.objectStoreNames.contains(MIND_MAPS_STORE)).toBe(true); expect(upgraded.objectStoreNames.contains(MIND_MAP_TOPICS_STORE)).toBe(true)
+  expect(await new Promise((resolve, reject) => { const request = upgraded.transaction(NODES_STORE).objectStore(NODES_STORE).get('legacy-node'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })).toMatchObject({ text: 'Livre', boardId: 'main' })
 })

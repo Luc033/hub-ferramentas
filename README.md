@@ -22,6 +22,8 @@ O projeto abre a base legada `HabitTrackerDB` sem elevar sua versão automaticam
 
 Anotações e Mapa Mental usam a versão nativa 4, com as stores `notes`, `boards`, `nodes` e `edges`. A área criativa só eleva o schema depois de baixar um backup e receber confirmação. A migração é aditiva: mantém `habits`, `habitCheckins` e `tasks`, criando qualquer store intermediária ausente. O conteúdo das notas é tratado como texto simples.
 
+O editor hierárquico de Mapas Mentais usa a versão nativa 6 e stores próprias, `mindMaps` e `mindMapTopics`. Essa separação preserva o quadro livre legado sem inventar relações de pai entre seus nós. A biblioteca de mapas também exige backup e confirmação antes da migração aditiva. Cada mapa mantém uma única raiz, tópicos ordenados e viewport independente; os dados entram no backup global e são validados antes da restauração.
+
 As preferências de interface e a sessão ativa do Timer usam chaves locais versionadas no `localStorage`. Essa política evita elevar silenciosamente a versão de uma base legada apenas para trocar tema ou volume. Hábitos e check-ins continuam no IndexedDB e não são duplicados no `localStorage`.
 
 ## Ferramentas disponíveis
@@ -31,9 +33,13 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Pomodoro automático com fases 25/5/15 e quantidade de focos por ciclo configuráveis, inclusive com recuperação idempotente de fases vencidas após recarga.
 - Kanban A Fazer/Fazendo/Concluído, com destino de ordenação, suporte a toque, controles acessíveis, persistência transacional e contagem de focos por tarefa vinculada.
 - Anotações em texto simples com salvamento automático serializado, flush ao sair, recuperação de falhas e criação de nós no mapa mental.
-- Mapa mental com nós, conexões, arraste, pan, zoom, enquadramento e histórico de desfazer/refazer durante a sessão, persistidos localmente.
+- Biblioteca de mapas mentais com criação, busca, ordenação, renomeação, duplicação e exclusão confirmada.
+- Editor hierárquico MM-1 com raiz única, filhos e irmãos, edição inline, recolhimento, exclusão com desfazer, layout radial, pan, zoom, enquadramento e autosave transacional.
+- Quadro livre legado com nós, conexões, arraste, pan, zoom e histórico de sessão, preservado separadamente.
 - Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O catálogo só exibe URLs aprovadas pelo oEmbed em tempo de execução, e o miniplayer global mantém a reprodução durante a navegação interna.
 
 Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação antes de elevar `HabitTrackerDB` para a versão nativa 3 e criar a store `tasks`. A migração também cria `habitCheckins` quando ela ainda não existe e nunca converte `days[7]` em datas.
 
 Os sons precisam de uma interação do usuário para iniciar, conforme as regras de reprodução dos navegadores. Eles não continuam com o navegador fechado. Rádio e playlists dependem de conexão, disponibilidade regional e regras dos provedores. Playlists adicionadas ficam na store `focusPlaylists` do IndexedDB nativo v5; nenhuma faixa é extraída, baixada ou enviada a um backend.
+
+As próximas etapas do editor de mapas reservam reparent/reordenação por drag, posicionamento manual, tópicos flutuantes, estilos, conexões transversais, mídia e exportações próprias. Esses controles não aparecem como ações falsas na etapa MM-1.

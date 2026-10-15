@@ -1,0 +1,24 @@
+import { calculateRadialLayout, connectionPath } from './layout'
+import type { MindMapTopic } from './types'
+
+const topic = (id: string, parentId: string | null, order: number, text = id): MindMapTopic => ({ id, mapId: 'map', parentId, order, text, collapsed: false, createdAt: order + 1, updatedAt: 1 })
+
+test('distribui ramos nos dois lados sem sobrepor tópicos irmãos', () => {
+  const topics = [topic('root', null, 0), topic('a', 'root', 0), topic('b', 'root', 1), topic('a1', 'a', 0), topic('b1', 'b', 0)]
+  const layout = calculateRadialLayout(topics, 'root')
+  expect(layout.topics.get('a')?.side).toBe(1)
+  expect(layout.topics.get('b')?.side).toBe(-1)
+  const boxes = [...layout.topics.values()]
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const first = boxes[i]; const second = boxes[j]
+    const overlaps = first.x < second.x + second.width && first.x + first.width > second.x && first.y < second.y + second.height && first.y + first.height > second.y
+    expect(overlaps).toBe(false)
+  }
+})
+
+test('remove descendentes recolhidos do layout e cria curva entre bordas', () => {
+  const topics = [topic('root', null, 0), { ...topic('a', 'root', 0), collapsed: true }, topic('hidden', 'a', 0)]
+  const layout = calculateRadialLayout(topics, 'root')
+  expect(layout.topics.has('hidden')).toBe(false)
+  expect(connectionPath(layout.topics.get('root')!, layout.topics.get('a')!)).toMatch(/^M .* C .*$/)
+})

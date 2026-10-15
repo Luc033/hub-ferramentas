@@ -13,6 +13,9 @@ export const EDGES_STORE = 'edges'
 export const CREATIVE_SCHEMA_VERSION = 4
 export const FOCUS_PLAYLISTS_STORE = 'focusPlaylists'
 export const AUDIO_SCHEMA_VERSION = 5
+export const MIND_MAPS_STORE = 'mindMaps'
+export const MIND_MAP_TOPICS_STORE = 'mindMapTopics'
+export const MIND_MAP_SCHEMA_VERSION = 6
 
 let connection: IDBDatabase | null = null
 let opening: Promise<IDBDatabase> | null = null
@@ -192,6 +195,53 @@ export async function upgradeToAudioSchema(): Promise<HabitDatabaseInfo> {
     request.onsuccess = () => { configureConnection(request.result); resolve() }
     request.onerror = () => reject(request.error ?? new Error('Não foi possível criar a biblioteca de playlists.'))
     request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de habilitar as playlists.'))
+  })
+  return inspectDatabase()
+}
+
+export async function upgradeToMindMapSchema(): Promise<HabitDatabaseInfo> {
+  const current = await openDatabase()
+  if ([MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE].every((name) => current.objectStoreNames.contains(name))) return inspectDatabase()
+  if (current.version > MIND_MAP_SCHEMA_VERSION) throw new Error(`A base usa a versão ${current.version}, mais nova que esta aplicação.`)
+  closeDatabase()
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, MIND_MAP_SCHEMA_VERSION)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(CHECKINS_STORE)) {
+        const checkins = db.createObjectStore(CHECKINS_STORE, { keyPath: 'id' })
+        checkins.createIndex('habitId', 'habitId', { unique: false }); checkins.createIndex('date', 'date', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(TASKS_STORE)) {
+        const tasks = db.createObjectStore(TASKS_STORE, { keyPath: 'id' })
+        tasks.createIndex('status', 'status', { unique: false }); tasks.createIndex('updatedAt', 'updatedAt', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(NOTES_STORE)) {
+        const notes = db.createObjectStore(NOTES_STORE, { keyPath: 'id' }); notes.createIndex('updatedAt', 'updatedAt', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(BOARDS_STORE)) db.createObjectStore(BOARDS_STORE, { keyPath: 'id' })
+      if (!db.objectStoreNames.contains(NODES_STORE)) {
+        const nodes = db.createObjectStore(NODES_STORE, { keyPath: 'id' }); nodes.createIndex('boardId', 'boardId', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(EDGES_STORE)) {
+        const edges = db.createObjectStore(EDGES_STORE, { keyPath: 'id' }); edges.createIndex('boardId', 'boardId', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(FOCUS_PLAYLISTS_STORE)) {
+        const playlists = db.createObjectStore(FOCUS_PLAYLISTS_STORE, { keyPath: 'id' })
+        playlists.createIndex('url', 'url', { unique: true }); playlists.createIndex('createdAt', 'createdAt', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(MIND_MAPS_STORE)) {
+        const maps = db.createObjectStore(MIND_MAPS_STORE, { keyPath: 'id' })
+        maps.createIndex('updatedAt', 'updatedAt', { unique: false }); maps.createIndex('name', 'name', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(MIND_MAP_TOPICS_STORE)) {
+        const topics = db.createObjectStore(MIND_MAP_TOPICS_STORE, { keyPath: 'id' })
+        topics.createIndex('mapId', 'mapId', { unique: false }); topics.createIndex('parentId', 'parentId', { unique: false })
+      }
+    }
+    request.onsuccess = () => { configureConnection(request.result); resolve() }
+    request.onerror = () => reject(request.error ?? new Error('Não foi possível criar a biblioteca de mapas mentais.'))
+    request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de habilitar Mapas Mentais.'))
   })
   return inspectDatabase()
 }
