@@ -23,9 +23,12 @@ export async function validateSoundCloudPlaylist(input: string): Promise<Pick<Fo
     response = await fetch(endpoint, { headers: { Accept: 'application/json' } })
   } catch { throw new Error('Não foi possível acessar o SoundCloud. Verifique sua conexão e tente novamente.') }
   if (!response.ok) throw new Error(response.status === 404 ? 'A playlist não foi encontrada ou foi removida.' : 'O SoundCloud não permitiu validar esta playlist agora.')
-  const data = await response.json() as Partial<SoundCloudOEmbed>
+  let data: Partial<SoundCloudOEmbed>
+  try { data = await response.json() as Partial<SoundCloudOEmbed> }
+  catch { throw new Error('O SoundCloud retornou uma resposta inválida. Tente novamente mais tarde.') }
   if (data.provider_name !== 'SoundCloud' || typeof data.title !== 'string' || !data.title.trim() || typeof data.html !== 'string' || !data.html.includes('w.soundcloud.com/player/')) throw new Error('Esta URL não oferece uma incorporação oficial disponível.')
-  return { url, title: data.title.trim().slice(0, 180), author: typeof data.author_name === 'string' ? data.author_name.trim().slice(0, 120) : 'SoundCloud' }
+  const author = typeof data.author_name === 'string' ? data.author_name.trim().slice(0, 120) : ''
+  return { url, title: data.title.trim().slice(0, 180), author: author || 'SoundCloud' }
 }
 
 export const focusPlaylistsRepository = {
@@ -38,9 +41,15 @@ export const focusPlaylistsRepository = {
   },
   async add(input: string, category: PlaylistCategory) {
     await this.initialize()
-    const validated = await validateSoundCloudPlaylist(input)
+    const normalizedUrl = normalizeSoundCloudPlaylistUrl(input)
+    const db = await openDatabase()
+    const lookup = db.transaction(FOCUS_PLAYLISTS_STORE, 'readonly')
+    const duplicate = await requestResult(lookup.objectStore(FOCUS_PLAYLISTS_STORE).index('url').get(normalizedUrl))
+    await transactionDone(lookup)
+    if (duplicate) throw new Error('Esta playlist já está na biblioteca.')
+    const validated = await validateSoundCloudPlaylist(normalizedUrl)
     const playlist: FocusPlaylist = { id: crypto.randomUUID(), ...validated, category, createdAt: Date.now() }
-    const db = await openDatabase(); const tx = db.transaction(FOCUS_PLAYLISTS_STORE, 'readwrite')
+    const tx = db.transaction(FOCUS_PLAYLISTS_STORE, 'readwrite')
     try { tx.objectStore(FOCUS_PLAYLISTS_STORE).add(playlist); await transactionDone(tx) } catch (reason) {
       if (reason instanceof DOMException && reason.name === 'ConstraintError') throw new Error('Esta playlist já está na biblioteca.')
       throw reason
