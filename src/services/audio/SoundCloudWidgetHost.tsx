@@ -29,11 +29,11 @@ export function SoundCloudWidgetHost({ url }: { url: string }) {
     void loadApi().then((api) => {
       if (cancelled || !iframe.current) return
       const created = api.Widget(iframe.current); widget = created; const events = api.Widget.Events
-      created.bind(events.READY, () => { window.clearTimeout(timeout); focusSoundService.attachSoundCloud(created) })
-      created.bind(events.PLAY, () => focusSoundService.soundCloudPlaying()); created.bind(events.PAUSE, () => focusSoundService.soundCloudPaused())
-      created.bind(events.FINISH, () => focusSoundService.soundCloudFinished()); if (events.ERROR) created.bind(events.ERROR, () => focusSoundService.soundCloudError())
-    }).catch(() => focusSoundService.soundCloudError())
+      created.bind(events.READY, () => { window.clearTimeout(timeout); focusSoundService.attachSoundCloud(created, url) })
+      created.bind(events.PLAY, () => focusSoundService.soundCloudPlaying(created)); created.bind(events.PAUSE, () => focusSoundService.soundCloudPaused(created))
+      created.bind(events.FINISH, () => focusSoundService.soundCloudFinished(created)); if (events.ERROR) created.bind(events.ERROR, () => focusSoundService.soundCloudError(created))
+    }).catch(() => { if (!cancelled) focusSoundService.soundCloudError() })
     return () => { cancelled = true; window.clearTimeout(timeout); if (widget) { focusSoundService.detachSoundCloud(widget); widget.unbind() } }
-  }, [src])
+  }, [src, url])
   return <iframe ref={iframe} title="Player oficial do SoundCloud" width="100%" height="166" scrolling="no" frameBorder="0" allow="autoplay" src={src} />
 }

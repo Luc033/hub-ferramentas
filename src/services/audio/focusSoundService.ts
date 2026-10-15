@@ -41,8 +41,13 @@ class FocusSoundService {
       if (sound === 'white') this.sourceNode.connect(this.master)
       else {
         const filter = this.context.createBiquadFilter(); filter.type = sound === 'rain' ? 'bandpass' : 'lowpass'; filter.frequency.value = sound === 'rain' ? 1800 : 500; filter.Q.value = sound === 'rain' ? .7 : 1.2
-        this.sourceNode.connect(filter).connect(this.master); this.extras.push(filter)
-        if (sound === 'waves') { const lfo = this.context.createOscillator(); const depth = this.context.createGain(); lfo.frequency.value = .12; depth.gain.value = .12; lfo.connect(depth).connect(this.master.gain); lfo.start(); this.extras.push(lfo, depth) }
+        if (sound === 'waves') {
+          const textureGain = this.context.createGain(); textureGain.gain.value = .72
+          const lfo = this.context.createOscillator(); const depth = this.context.createGain()
+          lfo.frequency.value = .12; depth.gain.value = .18
+          this.sourceNode.connect(filter).connect(textureGain).connect(this.master)
+          lfo.connect(depth).connect(textureGain.gain); lfo.start(); this.extras.push(filter, textureGain, lfo, depth)
+        } else { this.sourceNode.connect(filter).connect(this.master); this.extras.push(filter) }
       }
       this.master.connect(this.context.destination); this.sourceNode.start()
       this.update({ source: { kind: 'ambient', id: sound, title: ambientTitles[sound], provider: 'Web Audio' }, status: 'playing', error: null })
@@ -60,12 +65,12 @@ class FocusSoundService {
     this.stopCurrent()
     this.update({ source: { kind: 'soundcloud', id: playlist.id, title: playlist.title, provider: 'SoundCloud', url: playlist.url, author: playlist.author }, status: 'loading', error: null, attempt: this.state.attempt + 1 })
   }
-  attachSoundCloud(controller: SoundCloudController) { if (this.state.source?.kind === 'soundcloud') { this.soundCloud = controller; controller.setVolume(this.effectiveVolume()); controller.play() } }
+  attachSoundCloud(controller: SoundCloudController, expectedUrl: string) { if (this.state.source?.kind === 'soundcloud' && this.state.source.url === expectedUrl) { this.soundCloud = controller; controller.setVolume(this.effectiveVolume()); controller.play() } }
   detachSoundCloud(controller: SoundCloudController) { if (this.soundCloud === controller) this.soundCloud = null }
-  soundCloudPlaying() { if (this.state.source?.kind === 'soundcloud') this.update({ status: 'playing', error: null }) }
-  soundCloudPaused() { if (this.state.source?.kind === 'soundcloud' && this.state.status !== 'stopped') this.update({ status: 'paused' }) }
-  soundCloudFinished() { if (this.state.source?.kind === 'soundcloud') this.update({ status: 'paused' }) }
-  soundCloudError() { if (this.state.source?.kind === 'soundcloud') this.fail('A playlist foi removida, não permite incorporação ou está temporariamente indisponível.') }
+  soundCloudPlaying(controller: SoundCloudController) { if (this.isCurrentSoundCloud(controller)) this.update({ status: 'playing', error: null }) }
+  soundCloudPaused(controller: SoundCloudController) { if (this.isCurrentSoundCloud(controller) && this.state.status !== 'stopped') this.update({ status: 'paused' }) }
+  soundCloudFinished(controller: SoundCloudController) { if (this.isCurrentSoundCloud(controller)) this.update({ status: 'paused' }) }
+  soundCloudError(controller?: SoundCloudController) { if (this.state.source?.kind === 'soundcloud' && (!controller || this.isCurrentSoundCloud(controller))) this.fail('A playlist foi removida, não permite incorporação ou está temporariamente indisponível.') }
 
   async pause() {
     if (!['playing', 'loading'].includes(this.state.status)) return
@@ -102,6 +107,7 @@ class FocusSoundService {
     audio.addEventListener('error', () => { if (this.state.source?.kind === 'radio') this.fail('A rádio está indisponível ou a conexão foi interrompida.') })
     this.radio = audio; return audio
   }
+  private isCurrentSoundCloud(controller: SoundCloudController) { return this.state.source?.kind === 'soundcloud' && this.soundCloud === controller }
   private effectiveVolume() { return this.state.muted ? 0 : this.state.volume }
   private applyVolume() { const effective = this.effectiveVolume(); if (this.master && this.context) this.master.gain.setTargetAtTime(effective / 100, this.context.currentTime, .03); if (this.radio) this.radio.volume = effective / 100; this.soundCloud?.setVolume(effective) }
   private stopCurrent() {
