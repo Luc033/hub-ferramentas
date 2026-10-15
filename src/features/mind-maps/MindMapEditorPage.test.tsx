@@ -114,6 +114,13 @@ test('adiciona link pelo painel e persiste somente a versão validada', async ()
   await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: [expect.objectContaining({ links: [expect.objectContaining({ label: 'example.com', url: 'https://example.com/referencia' })] })] })))
 })
 
+test('faz flush da nota do tópico ao fechar as propriedades', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Propriedades' })); fireEvent.change(screen.getByPlaceholderText('Detalhes em texto simples'), { target: { value: 'Nota ainda não gravada' } }); fireEvent.click(screen.getByRole('button', { name: 'Fechar propriedades' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: [expect.objectContaining({ id: 'root', note: 'Nota ainda não gravada' })] })))
+})
+
 test('seleciona múltiplos tópicos com Shift e arraste no canvas', async () => {
   vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
   render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)

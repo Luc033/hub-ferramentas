@@ -1,5 +1,5 @@
 import { Image, Link2, Palette, X } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { normalizeMindMapLink, type NewMindMapLink } from './linkValidation'
 import type { MindMapConnection, MindMapDocument, MindMapTheme, MindMapTopic, MindMapTopicStyle } from './types'
 
@@ -13,15 +13,34 @@ interface Props {
   onClose: () => void
   onTheme: (theme: MindMapTheme) => void
   onTopic: (changes: Partial<MindMapTopic>) => void
+  onTopicNote: (topicId: string, note: string) => void
   onConnection: (id: string, changes: Partial<MindMapConnection>) => void
   onRemoveConnection: (id: string) => void
   onAddLink: (link: NewMindMapLink) => void
   onUploadImage: (file?: File) => void
 }
 
-export function MindMapPropertiesPanel({ document, selected, selectedConnectionId, advancedEnabled, imageUrl, imageMessage, onClose, onTheme, onTopic, onConnection, onRemoveConnection, onAddLink, onUploadImage }: Props) {
+export function MindMapPropertiesPanel({ document, selected, selectedConnectionId, advancedEnabled, imageUrl, imageMessage, onClose, onTheme, onTopic, onTopicNote, onConnection, onRemoveConnection, onAddLink, onUploadImage }: Props) {
   const style = selected.style ?? {}; const updateStyle = (changes: Partial<MindMapTopicStyle>) => onTopic({ style: { ...style, ...changes } })
   const connections = (document.connections ?? []).filter((item) => item.sourceId === selected.id || item.targetId === selected.id).sort((a, b) => Number(b.id === selectedConnectionId) - Number(a.id === selectedConnectionId))
+  const [noteDraft, setNoteDraft] = useState(selected.note ?? '')
+  const noteTimer = useRef<number | null>(null)
+  const noteDraftRef = useRef(noteDraft)
+  const savedNoteRef = useRef(noteDraft)
+  const noteTopicIdRef = useRef(selected.id)
+  const onTopicNoteRef = useRef(onTopicNote)
+  onTopicNoteRef.current = onTopicNote
+  const flushNote = useCallback(() => {
+    if (noteTimer.current) { window.clearTimeout(noteTimer.current); noteTimer.current = null }
+    if (noteDraftRef.current === savedNoteRef.current) return
+    savedNoteRef.current = noteDraftRef.current
+    onTopicNoteRef.current(noteTopicIdRef.current, noteDraftRef.current)
+  }, [])
+  useEffect(() => {
+    if (noteTimer.current) { window.clearTimeout(noteTimer.current); noteTimer.current = null }
+    const note = selected.note ?? ''; noteTopicIdRef.current = selected.id; noteDraftRef.current = note; savedNoteRef.current = note; setNoteDraft(note)
+    return flushNote
+  }, [selected.id, flushNote])
   const [linkFormOpen, setLinkFormOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
@@ -33,7 +52,7 @@ export function MindMapPropertiesPanel({ document, selected, selectedConnectionI
     catch (reason) { setLinkError(reason instanceof Error ? reason.message : 'Não foi possível validar o link.') }
   }
   return <aside className="absolute bottom-3 right-3 top-3 z-30 w-[min(24rem,calc(100%-1.5rem))] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900/95 p-4 shadow-2xl" aria-label="Propriedades do tópico">
-    <div className="mb-4 flex items-center gap-2"><Palette size={17} className="text-violet-400" /><strong className="text-sm text-strong">Propriedades</strong><button className="ml-auto rounded-lg p-2 text-slate-400" aria-label="Fechar propriedades" onClick={onClose}><X size={17} /></button></div>
+    <div className="mb-4 flex items-center gap-2"><Palette size={17} className="text-violet-400" /><strong className="text-sm text-strong">Propriedades</strong><button className="ml-auto rounded-lg p-2 text-slate-400" aria-label="Fechar propriedades" onClick={() => { flushNote(); onClose() }}><X size={17} /></button></div>
     <label className="mb-3 block text-xs text-slate-400">Tema do mapa<select value={document.map.theme ?? 'classic'} onChange={(event) => onTheme(event.target.value as MindMapTheme)} className="mt-1 min-h-10 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-white"><option value="classic">Clássico</option><option value="minimal">Minimalista</option><option value="colorful">Colorido</option></select></label>
     <fieldset className="mb-4 rounded-xl border border-slate-700 p-3"><legend className="px-1 text-xs font-semibold text-slate-300">Aparência do tópico</legend>
       <div className="grid grid-cols-3 gap-2"><label className="text-xs text-slate-400">Fundo<input aria-label="Cor de fundo" type="color" value={style.background ?? '#1e293b'} onChange={(event) => updateStyle({ background: event.target.value })} className="mt-1 block h-10 w-full" /></label><label className="text-xs text-slate-400">Texto<input aria-label="Cor do texto" type="color" value={style.color ?? '#f8fafc'} onChange={(event) => updateStyle({ color: event.target.value })} className="mt-1 block h-10 w-full" /></label><label className="text-xs text-slate-400">Borda<input aria-label="Cor da borda" type="color" value={style.borderColor ?? '#64748b'} onChange={(event) => updateStyle({ borderColor: event.target.value })} className="mt-1 block h-10 w-full" /></label></div>
@@ -43,7 +62,7 @@ export function MindMapPropertiesPanel({ document, selected, selectedConnectionI
       <div className="mt-3 grid grid-cols-3 gap-2"><button aria-pressed={Boolean(style.bold)} className="topic-action justify-center" onClick={() => updateStyle({ bold: !style.bold })}><strong>B</strong></button><button aria-pressed={Boolean(style.italic)} className="topic-action justify-center italic" onClick={() => updateStyle({ italic: !style.italic })}>I</button><button className="topic-action justify-center" onClick={() => onTopic({ style: undefined })}>Padrão</button></div>
     </fieldset>
     <label className="mb-3 block text-xs text-slate-400">Ícone<div className="mt-1 flex flex-wrap gap-1">{['', '💡', '✅', '⭐', '📌', '🚀', '📚'].map((icon) => <button key={icon || 'none'} className="min-h-10 min-w-10 rounded-lg border border-slate-700" onClick={() => onTopic({ icon })}>{icon || '—'}</button>)}</div></label>
-    <label className="mb-3 block text-xs text-slate-400">Nota<textarea maxLength={10000} value={selected.note ?? ''} onChange={(event) => onTopic({ note: event.target.value })} placeholder="Detalhes em texto simples" className="mt-1 min-h-24 w-full resize-y rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white" /></label>
+    <label className="mb-3 block text-xs text-slate-400">Nota<textarea maxLength={10000} value={noteDraft} onChange={(event) => { const note = event.target.value; setNoteDraft(note); noteDraftRef.current = note; if (noteTimer.current) window.clearTimeout(noteTimer.current); noteTimer.current = window.setTimeout(flushNote, 500) }} onBlur={flushNote} placeholder="Detalhes em texto simples" className="mt-1 min-h-24 w-full resize-y rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white" /><span className="mt-1 block text-[11px] text-slate-500">Salva após uma breve pausa.</span></label>
     <button className="topic-action mb-3" aria-expanded={linkFormOpen} disabled={(selected.links?.length ?? 0) >= 100} onClick={() => { setLinkFormOpen((value) => !value); setLinkError('') }}><Link2 size={16} />Adicionar link</button>{linkFormOpen && <form className="mb-3 rounded-xl border border-slate-700 bg-slate-800/70 p-3" onSubmit={submitLink} noValidate><label className="block text-xs text-slate-400">Endereço<input autoFocus type="url" inputMode="url" value={linkUrl} onChange={(event) => { setLinkUrl(event.target.value); setLinkError('') }} placeholder="https://exemplo.com" className="mt-1 min-h-10 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white" /></label><label className="mt-2 block text-xs text-slate-400">Nome opcional<input maxLength={80} value={linkLabel} onChange={(event) => { setLinkLabel(event.target.value); setLinkError('') }} placeholder="Usar domínio" className="mt-1 min-h-10 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white" /></label>{linkError && <p role="alert" className="mt-2 text-xs text-red-300">{linkError}</p>}<div className="mt-3 flex justify-end gap-2"><button type="button" className="min-h-10 rounded-lg px-3 text-xs font-semibold text-slate-300" onClick={() => { setLinkFormOpen(false); setLinkError('') }}>Cancelar</button><button type="submit" className="min-h-10 rounded-lg bg-violet-600 px-3 text-xs font-semibold text-white">Salvar link</button></div></form>}{selected.links?.map((link) => <div key={link.id} className="mb-1 flex items-center gap-2 rounded-lg bg-slate-800 p-2 text-xs"><a href={link.url} target="_blank" rel="noopener noreferrer" title={link.url} className="min-w-0 flex-1 truncate text-violet-300">{link.label}</a><button aria-label={`Remover ${link.label}`} onClick={() => onTopic({ links: selected.links?.filter((item) => item.id !== link.id) })}><X size={14} /></button></div>)}
     <label className={`topic-action mt-3 cursor-pointer ${!advancedEnabled ? 'pointer-events-none opacity-50' : ''}`}><Image size={16} />Adicionar imagem<input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { onUploadImage(event.target.files?.[0]); event.currentTarget.value = '' }} /></label>{imageUrl && <img src={imageUrl} alt="Pré-visualização da imagem do tópico" className="mt-3 max-h-36 w-full rounded-xl border border-slate-700 object-contain" />}{imageMessage && <p role="status" className="mt-2 text-xs text-slate-400">{imageMessage}</p>}{selected.imageAssetId && <button className="mt-2 text-xs text-red-300 underline" onClick={() => onTopic({ imageAssetId: undefined })}>Remover imagem</button>}
     <div className="mt-5 border-t border-slate-700 pt-4"><strong className="text-xs text-slate-300">Conexões deste tópico</strong>{connections.length === 0 && <p className="mt-2 text-xs text-slate-500">Nenhuma conexão manual.</p>}{connections.map((item) => <div key={item.id} aria-label={item.id === selectedConnectionId ? 'Conexão selecionada' : undefined} className={`mt-2 rounded-lg border p-3 ${item.id === selectedConnectionId ? 'border-violet-400 bg-violet-500/10' : 'border-transparent bg-slate-800'}`}>
