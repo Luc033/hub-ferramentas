@@ -15,6 +15,7 @@ import { MindMapPropertiesPanel } from './MindMapPropertiesPanel'
 import { MindMapShortcutsDialog } from './MindMapShortcutsDialog'
 import { formatImageBytes, prepareMindMapImage } from './imageProcessing'
 import { hasConnectionBetween } from './connectionRules'
+import { clampMindMapZoom, zoomViewportAtPoint } from './viewport'
 
 type SaveState = 'saved' | 'saving' | 'error'
 interface History { past: MindMapDocument[]; future: MindMapDocument[] }
@@ -26,7 +27,6 @@ interface SelectionBox { pointerId: number; startX: number; startY: number; x: n
 interface FocusSnapshot { viewport: MindMapViewport; selectedId: string | null; selectedIds: Set<string> }
 const cloneTopics = (topics: MindMapTopic[]) => topics.map((topic) => ({ ...topic }))
 const cloneDocument = (document: MindMapDocument): MindMapDocument => ({ map: { ...document.map, viewport: { ...document.map.viewport } }, topics: cloneTopics(document.topics), connections: (document.connections ?? []).map((item) => ({ ...item })) })
-const clampZoom = (zoom: number) => Math.min(3, Math.max(.25, Number(zoom.toFixed(2))))
 const saveMessage = (reason: unknown) => reason instanceof DOMException && reason.name === 'QuotaExceededError' ? 'O armazenamento local está cheio. Exporte este mapa e remova arquivos que não usa.' : reason instanceof Error ? reason.message : 'Não foi possível salvar o mapa.'
 
 export default function MindMapEditorPage() {
@@ -306,18 +306,18 @@ export default function MindMapEditorPage() {
   }, [document, scheduleViewportSave])
   const fit = useCallback(() => {
     const canvas = canvasRef.current; if (!canvas || !document || !layout) return
-    const padding = 90; const zoom = clampZoom(Math.min((canvas.clientWidth - padding) / Math.max(layout.width, 1), (canvas.clientHeight - padding) / Math.max(layout.height, 1), 1.4))
+    const padding = 90; const zoom = clampMindMapZoom(Math.min((canvas.clientWidth - padding) / Math.max(layout.width, 1), (canvas.clientHeight - padding) / Math.max(layout.height, 1), 1.4))
     scheduleViewportSave({ zoom, panX: canvas.clientWidth / 2 - ((layout.minX + layout.maxX) / 2) * zoom, panY: canvas.clientHeight / 2 - ((layout.minY + layout.maxY) / 2) * zoom })
   }, [document, layout, scheduleViewportSave])
   useEffect(() => { if (document && document.map.viewport.panX === 0 && document.map.viewport.panY === 0 && canvasRef.current) center() }, [document?.map.id, center])
 
   const zoomBy = (delta: number) => {
-    if (!document) return; const canvas = canvasRef.current; const current = document.map.viewport; const zoom = clampZoom(current.zoom + delta); const cx = canvas ? canvas.clientWidth / 2 : 0; const cy = canvas ? canvas.clientHeight / 2 : 0; const factor = zoom / current.zoom
-    scheduleViewportSave({ zoom, panX: cx - (cx - current.panX) * factor, panY: cy - (cy - current.panY) * factor })
+    if (!document) return; const canvas = canvasRef.current; const current = document.map.viewport; const cx = canvas ? canvas.clientWidth / 2 : 0; const cy = canvas ? canvas.clientHeight / 2 : 0
+    scheduleViewportSave(zoomViewportAtPoint(current, current.zoom + delta, cx, cy))
   }
   const resetZoom = () => {
-    if (!document) return; const canvas = canvasRef.current; const current = document.map.viewport; const cx = canvas ? canvas.clientWidth / 2 : 0; const cy = canvas ? canvas.clientHeight / 2 : 0; const factor = 1 / current.zoom
-    scheduleViewportSave({ zoom: 1, panX: cx - (cx - current.panX) * factor, panY: cy - (cy - current.panY) * factor })
+    if (!document) return; const canvas = canvasRef.current; const current = document.map.viewport; const cx = canvas ? canvas.clientWidth / 2 : 0; const cy = canvas ? canvas.clientHeight / 2 : 0
+    scheduleViewportSave(zoomViewportAtPoint(current, 1, cx, cy))
   }
   const enterFocus = () => {
     if (!document || !selectedId) return
@@ -351,8 +351,8 @@ export default function MindMapEditorPage() {
     const pinch = pinchGesture.current; const points = [...canvasPointers.current.values()]
     if (pinch && points.length >= 2 && document) {
       const [first, second] = points; const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)); const centerX = (first.x + second.x) / 2; const centerY = (first.y + second.y) / 2; const canvas = canvasRef.current; if (!canvas) return
-      const rect = canvas.getBoundingClientRect(); const zoom = clampZoom(pinch.viewport.zoom * distance / Math.max(1, pinch.distance)); const worldX = (pinch.centerX - rect.left - pinch.viewport.panX) / pinch.viewport.zoom; const worldY = (pinch.centerY - rect.top - pinch.viewport.panY) / pinch.viewport.zoom
-      const viewport = { zoom, panX: centerX - rect.left - worldX * zoom, panY: centerY - rect.top - worldY * zoom }; const next = { ...document, map: { ...document.map, viewport } }; setDocument(next); documentRef.current = next; return
+      const rect = canvas.getBoundingClientRect(); const zoom = pinch.viewport.zoom * distance / Math.max(1, pinch.distance)
+      const viewport = zoomViewportAtPoint(pinch.viewport, zoom, pinch.centerX - rect.left, pinch.centerY - rect.top, centerX - rect.left, centerY - rect.top); const next = { ...document, map: { ...document.map, viewport } }; setDocument(next); documentRef.current = next; return
     }
     if (!panning || panning.pointerId !== event.pointerId || !document) return
     const viewport = { ...document.map.viewport, panX: panning.panX + event.clientX - panning.startX, panY: panning.panY + event.clientY - panning.startY }
@@ -519,7 +519,7 @@ export default function MindMapEditorPage() {
     {!advancedEnabled && <div className="z-20 flex flex-wrap items-center justify-center gap-3 border-b border-violet-500/30 bg-violet-500/10 px-4 py-2 text-xs text-violet-100"><span>Conexões, estilos e imagens usam uma expansão local e segura do banco.</span><button className="font-semibold underline" onClick={() => { void enableAdvanced() }}>Baixar backup e habilitar</button></div>}
     <section className="relative flex min-h-0 flex-1">
       {exportOpen && <aside className="absolute right-3 top-3 z-40 w-56 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-2xl" aria-label="Opções de exportação"><button className="topic-action w-full" onClick={() => { void exportMap('json') }}>JSON editável</button><button className="topic-action mt-1 w-full" onClick={() => { void exportMap('svg') }}>SVG autocontido</button><button className="topic-action mt-1 w-full" onClick={() => { void exportMap('png') }}>PNG</button></aside>}
-      <div ref={canvasRef} tabIndex={0} aria-label="Canvas do mapa mental" className={`mind-map-canvas relative min-h-0 flex-1 touch-none overflow-hidden outline-none ${panning ? 'cursor-grabbing' : 'cursor-grab'}`} onPointerDown={onCanvasPointerDown} onPointerMove={onCanvasPointerMove} onPointerUp={stopPanning} onPointerCancel={stopPanning} onKeyDown={onKeyDown} onWheel={(event) => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); zoomBy(event.deltaY < 0 ? .1 : -.1) }}>
+      <div ref={canvasRef} tabIndex={0} aria-label="Canvas do mapa mental" className={`mind-map-canvas relative min-h-0 flex-1 touch-none overflow-hidden outline-none ${panning ? 'cursor-grabbing' : 'cursor-grab'}`} onPointerDown={onCanvasPointerDown} onPointerMove={onCanvasPointerMove} onPointerUp={stopPanning} onPointerCancel={stopPanning} onKeyDown={onKeyDown} onWheel={(event) => { if ((!event.ctrlKey && !event.metaKey) || !document) return; event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); const anchorX = event.clientX - rect.left; const anchorY = event.clientY - rect.top; scheduleViewportSave(zoomViewportAtPoint(document.map.viewport, document.map.viewport.zoom + (event.deltaY < 0 ? .1 : -.1), anchorX, anchorY)) }}>
         <div className="absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${viewport.panX}px, ${viewport.panY}px) scale(${viewport.zoom})` }}>
           <svg aria-label="Conexões do mapa" className="absolute overflow-visible" width={Math.max(1, layout.width + connectionPadding * 2)} height={Math.max(1, layout.height + connectionPadding * 2)} viewBox={`${layout.minX - connectionPadding} ${layout.minY - connectionPadding} ${Math.max(1, layout.width + connectionPadding * 2)} ${Math.max(1, layout.height + connectionPadding * 2)}`} style={{ left: layout.minX - connectionPadding, top: layout.minY - connectionPadding }}>
             <defs><marker id="mind-map-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" /></marker></defs>

@@ -144,6 +144,13 @@ test('tecla zero restaura o zoom sem reenquadrar o mapa', async () => {
   const canvas = await screen.findByLabelText('Canvas do mapa mental'); expect(screen.getByText('200%')).toBeInTheDocument(); fireEvent.keyDown(canvas, { key: '0' }); expect(screen.getByText('100%')).toBeInTheDocument(); expect(canvas.firstElementChild).toHaveStyle({ transform: 'translate(60px, 40px) scale(1)' })
 })
 
+test('roda com modificador ancora o zoom na posição do cursor', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  const canvas = await screen.findByLabelText('Canvas do mapa mental'); fireEvent.wheel(canvas, { ctrlKey: true, deltaY: -100, clientX: 420, clientY: 260 })
+  expect(screen.getByText('110%')).toBeInTheDocument(); expect(canvas.firstElementChild).toHaveStyle({ transform: 'translate(90px, 84px) scale(1.1)' })
+})
+
 test('seleciona uma conexão pelo canvas e permite excluí-la pelo teclado', async () => {
   const connected: MindMapDocument = { ...documentWithChildren, connections: [{ id: 'edge', mapId: 'map', sourceId: 'root', targetId: 'a', label: 'depende de', color: '#a78bfa', width: 2, dashed: false, directed: true, createdAt: 4, updatedAt: 4 }] }
   vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(connected); vi.spyOn(mindMapsRepository, 'isAdvancedEnabled').mockResolvedValue(true); vi.spyOn(mindMapsRepository, 'getAssets').mockResolvedValue([]); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
