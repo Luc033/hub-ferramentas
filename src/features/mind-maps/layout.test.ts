@@ -22,3 +22,10 @@ test('remove descendentes recolhidos do layout e cria curva entre bordas', () =>
   expect(layout.topics.has('hidden')).toBe(false)
   expect(connectionPath(layout.topics.get('root')!, layout.topics.get('a')!)).toMatch(/^M .* C .*$/)
 })
+
+test('respeita posições manuais e mantém tópico independente visível', () => {
+  const topics = [topic('root', null, 0), { ...topic('a', 'root', 0), position: { x: 500, y: 80 }, manualPosition: true }, { ...topic('free', null, 1), position: { x: -500, y: 120 }, manualPosition: true }]
+  const layout = calculateRadialLayout(topics, 'root', 'manual')
+  expect(layout.topics.get('a')).toMatchObject({ x: 500, y: 80 })
+  expect(layout.topics.get('free')).toMatchObject({ x: -500, y: 120 })
+})

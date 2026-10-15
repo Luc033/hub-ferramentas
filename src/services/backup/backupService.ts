@@ -46,12 +46,13 @@ const isFocusPlaylist = (value: unknown): value is FocusPlaylist => Boolean(valu
 const isMindMap = (value: unknown): value is MindMap => {
   if (!value || typeof value !== 'object') return false
   const item = value as MindMap
-  return typeof item.id === 'string' && item.schemaVersion === 1 && typeof item.name === 'string' && item.name.trim().length > 0 && item.name.length <= 100 && typeof item.rootId === 'string' && item.layout === 'radial' && Boolean(item.viewport) && isFiniteNumber(item.viewport.panX) && isFiniteNumber(item.viewport.panY) && isFiniteNumber(item.viewport.zoom) && item.viewport.zoom >= .25 && item.viewport.zoom <= 3 && isFiniteNumber(item.createdAt) && isFiniteNumber(item.updatedAt)
+  return typeof item.id === 'string' && item.schemaVersion === 1 && typeof item.name === 'string' && item.name.trim().length > 0 && item.name.length <= 100 && typeof item.rootId === 'string' && ['radial', 'manual'].includes(item.layout) && Boolean(item.viewport) && isFiniteNumber(item.viewport.panX) && isFiniteNumber(item.viewport.panY) && isFiniteNumber(item.viewport.zoom) && item.viewport.zoom >= .25 && item.viewport.zoom <= 3 && isFiniteNumber(item.createdAt) && isFiniteNumber(item.updatedAt)
 }
 const isMindMapTopic = (value: unknown): value is MindMapTopic => {
   if (!value || typeof value !== 'object') return false
   const item = value as MindMapTopic
-  return typeof item.id === 'string' && typeof item.mapId === 'string' && (item.parentId === null || typeof item.parentId === 'string') && Number.isInteger(item.order) && item.order >= 0 && typeof item.text === 'string' && item.text.length <= 500 && typeof item.collapsed === 'boolean' && isFiniteNumber(item.createdAt) && isFiniteNumber(item.updatedAt)
+  const positionValid = item.position === undefined || Boolean(item.position && isFiniteNumber(item.position.x) && isFiniteNumber(item.position.y))
+  return typeof item.id === 'string' && typeof item.mapId === 'string' && (item.parentId === null || typeof item.parentId === 'string') && Number.isInteger(item.order) && item.order >= 0 && typeof item.text === 'string' && item.text.length <= 500 && typeof item.collapsed === 'boolean' && positionValid && (item.manualPosition === undefined || typeof item.manualPosition === 'boolean') && isFiniteNumber(item.createdAt) && isFiniteNumber(item.updatedAt)
 }
 
 export function parseBackup(text: string): HubBackup {

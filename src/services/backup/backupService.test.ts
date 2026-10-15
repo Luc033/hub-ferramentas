@@ -50,4 +50,6 @@ test('valida a integridade das árvores de mapas mentais no backup', () => {
   const data = { schemaVersion: 6, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [], mindMaps: [map], mindMapTopics: [root] } }
   expect(parseBackup(JSON.stringify(data)).records.mindMapTopics).toEqual([root])
   expect(() => parseBackup(JSON.stringify({ ...data, records: { habits: [], mindMaps: [map], mindMapTopics: [{ ...root, parentId: 'missing' }] } }))).toThrow()
+  expect(parseBackup(JSON.stringify({ ...data, records: { habits: [], mindMaps: [{ ...map, layout: 'manual' }], mindMapTopics: [{ ...root, position: { x: 10, y: 20 }, manualPosition: true }] } })).records.mindMaps?.[0]).toMatchObject({ layout: 'manual' })
+  expect(() => parseBackup(JSON.stringify({ ...data, records: { habits: [], mindMaps: [map], mindMapTopics: [{ ...root, position: { x: Number.NaN, y: 0 } }] } }))).toThrow('tópicos')
 })

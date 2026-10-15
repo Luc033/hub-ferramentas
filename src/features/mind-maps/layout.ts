@@ -16,7 +16,7 @@ function topicHeight(text: string, root: boolean) {
   return Math.max(root ? 72 : 56, 28 + lines * 20)
 }
 
-export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string): MindMapLayout {
+export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string, mode: 'radial' | 'manual' = 'radial'): MindMapLayout {
   const visible = visibleTopics(allTopics, rootId)
   const byId = new Map(visible.map((topic) => [topic.id, topic]))
   const children = new Map<string, MindMapTopic[]>()
@@ -48,6 +48,18 @@ export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string)
     items.forEach((topic) => { const span = heights.get(topic.id) ?? 0; placeBranch(topic, side, 1, cursor + span / 2); cursor += span + SIBLING_GAP })
   }
   placeSide(right, 1); placeSide(left, -1)
+  const floating = visible.filter((topic) => topic.parentId === null && topic.id !== rootId)
+  const placeFloating = (topic: MindMapTopic, depth: number, fallbackX: number, centerY: number) => {
+    const height = topicHeight(topic.text, false); const position = topic.position
+    const x = position?.x ?? fallbackX; const y = position?.y ?? centerY - height / 2
+    positioned.set(topic.id, { id: topic.id, x, y, width: TOPIC_WIDTH, height, side: 1, depth })
+    const descendants = children.get(topic.id) ?? []; let cursor = y
+    descendants.forEach((child) => { const span = heights.get(child.id) ?? topicHeight(child.text, false); placeFloating(child, depth + 1, x + TOPIC_WIDTH + LEVEL_GAP, cursor + span / 2); cursor += span + SIBLING_GAP })
+  }
+  floating.forEach((topic, index) => { measure(topic.id); placeFloating(topic, 0, 380, index * 150) })
+  if (mode === 'manual') {
+    positioned.forEach((value, id) => { const position = byId.get(id)?.position; if (position) positioned.set(id, { ...value, x: position.x, y: position.y }) })
+  }
   const values = [...positioned.values()]
   const minX = Math.min(...values.map((item) => item.x)); const minY = Math.min(...values.map((item) => item.y))
   const maxX = Math.max(...values.map((item) => item.x + item.width)); const maxY = Math.max(...values.map((item) => item.y + item.height))
@@ -55,7 +67,7 @@ export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string)
 }
 
 export function connectionPath(parent: TopicLayout, child: TopicLayout) {
-  const right = child.side === 1
+  const right = child.x + child.width / 2 >= parent.x + parent.width / 2
   const startX = right ? parent.x + parent.width : parent.x
   const endX = right ? child.x : child.x + child.width
   const startY = parent.y + parent.height / 2; const endY = child.y + child.height / 2; const bend = Math.abs(endX - startX) * .5

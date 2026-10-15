@@ -34,7 +34,8 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Kanban A Fazer/Fazendo/Concluído, com destino de ordenação, suporte a toque, controles acessíveis, persistência transacional e contagem de focos por tarefa vinculada.
 - Anotações em texto simples com salvamento automático serializado, flush ao sair, recuperação de falhas e criação de nós no mapa mental.
 - Biblioteca de mapas mentais com criação, busca, ordenação, renomeação, duplicação e exclusão confirmada.
-- Editor hierárquico MM-1 com raiz única, filhos e irmãos, edição inline, recolhimento, exclusão com desfazer, layout radial, pan, zoom, enquadramento e autosave transacional.
+- Editor hierárquico com raiz única, filhos e irmãos, edição inline, recolhimento, exclusão com desfazer, layout radial, pan, zoom, enquadramento e autosave transacional.
+- Interações MM-2 com reparent e reordenação por Pointer Events, alternativa acessível “Mover para”, posições manuais, tópicos independentes, seleção múltipla, busca, duplicação e clipboard de ramificações.
 - Quadro livre legado com nós, conexões, arraste, pan, zoom e histórico de sessão, preservado separadamente.
 - Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O catálogo só exibe URLs aprovadas pelo oEmbed em tempo de execução, e o miniplayer global mantém a reprodução durante a navegação interna.
 
@@ -42,4 +43,4 @@ Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação 
 
 Os sons precisam de uma interação do usuário para iniciar, conforme as regras de reprodução dos navegadores. Eles não continuam com o navegador fechado. Rádio e playlists dependem de conexão, disponibilidade regional e regras dos provedores. Playlists adicionadas ficam na store `focusPlaylists` do IndexedDB nativo v5; nenhuma faixa é extraída, baixada ou enviada a um backend.
 
-As próximas etapas do editor de mapas reservam reparent/reordenação por drag, posicionamento manual, tópicos flutuantes, estilos, conexões transversais, mídia e exportações próprias. Esses controles não aparecem como ações falsas na etapa MM-1.
+As próximas etapas do editor de mapas reservam temas e estilos, conexões transversais, notas e links, mídia local, Outline, exportações próprias e robustez multiaba. Esses controles não aparecem como ações falsas.

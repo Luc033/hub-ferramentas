@@ -1,11 +1,12 @@
 export interface MindMapViewport { panX: number; panY: number; zoom: number }
+export interface MindMapPosition { x: number; y: number }
 
 export interface MindMap {
   id: string
   schemaVersion: 1
   name: string
   rootId: string
-  layout: 'radial'
+  layout: 'radial' | 'manual'
   viewport: MindMapViewport
   createdAt: number
   updatedAt: number
@@ -18,6 +19,8 @@ export interface MindMapTopic {
   order: number
   text: string
   collapsed: boolean
+  position?: MindMapPosition
+  manualPosition?: boolean
   createdAt: number
   updatedAt: number
 }

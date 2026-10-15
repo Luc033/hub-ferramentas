@@ -9,6 +9,10 @@ const document: MindMapDocument = {
   map: { id: 'map', schemaVersion: 1, name: 'Plano', rootId: 'root', layout: 'radial', viewport: { panX: 120, panY: 100, zoom: 1 }, createdAt: 1, updatedAt: 1 },
   topics: [{ id: 'root', mapId: 'map', parentId: null, order: 0, text: 'Plano', collapsed: false, createdAt: 1, updatedAt: 1 }],
 }
+const documentWithChildren: MindMapDocument = {
+  ...document,
+  topics: [document.topics[0], { id: 'a', mapId: 'map', parentId: 'root', order: 0, text: 'Primeiro', collapsed: false, createdAt: 2, updatedAt: 2 }, { id: 'b', mapId: 'map', parentId: 'root', order: 1, text: 'Segundo', collapsed: false, createdAt: 3, updatedAt: 3 }],
+}
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -32,4 +36,24 @@ test('atalho Tab cria filho e persiste a árvore', async () => {
   const canvas = await screen.findByLabelText('Canvas do mapa mental')
   fireEvent.keyDown(canvas, { key: 'Tab' })
   await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ parentId: 'root' })]) })))
+})
+
+test('alterna para posição manual persistindo as coordenadas atuais', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren)
+  const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value)
+  vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Usar posição manual' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ map: expect.objectContaining({ layout: 'manual' }), topics: expect.arrayContaining([expect.objectContaining({ id: 'a', manualPosition: true, position: expect.any(Object) })]) })))
+})
+
+test('reordena por controle acessível sem depender de arraste', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren)
+  const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value)
+  vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: /Tópico: Primeiro/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Mover para/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Abaixo' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ id: 'a', order: 1 }), expect.objectContaining({ id: 'b', order: 0 })]) })))
 })

@@ -31,3 +31,11 @@ test('renomeia e persiste viewport somente após a transação', async () => {
   await mindMapsRepository.rename(document.map.id, '  Final  '); await mindMapsRepository.saveViewport(document.map.id, { panX: 120, panY: -45, zoom: 1.4 })
   expect((await mindMapsRepository.get(document.map.id))?.map).toMatchObject({ name: 'Final', viewport: { panX: 120, panY: -45, zoom: 1.4 } })
 })
+
+test('persiste posição manual e tópico independente sem afetar a raiz', async () => {
+  const original = await mindMapsRepository.create('Manual')
+  const child = addTopic(original.topics, original.map.rootId, 'child')
+  const topics = child.topics.map((topic) => topic.id === child.topic.id ? { ...topic, parentId: null, order: 1, manualPosition: true, position: { x: 320, y: -90 } } : topic)
+  await mindMapsRepository.save({ map: { ...original.map, layout: 'manual' }, topics })
+  expect(await mindMapsRepository.get(original.map.id)).toMatchObject({ map: { layout: 'manual', rootId: original.map.rootId }, topics: expect.arrayContaining([expect.objectContaining({ id: child.topic.id, parentId: null, position: { x: 320, y: -90 } })]) })
+})
