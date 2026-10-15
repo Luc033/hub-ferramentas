@@ -174,6 +174,14 @@ test('seleciona uma conexão pelo canvas e permite excluí-la pelo teclado', asy
   await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ connections: [] }))); expect(screen.queryByRole('button', { name: 'Conexão de Plano para Primeiro' })).not.toBeInTheDocument()
 })
 
+test('faz flush do rótulo da conexão ao fechar as propriedades', async () => {
+  const connected: MindMapDocument = { ...documentWithChildren, connections: [{ id: 'edge', mapId: 'map', sourceId: 'root', targetId: 'a', label: '', color: '#a78bfa', width: 2, dashed: false, directed: false, createdAt: 4, updatedAt: 4 }] }
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(connected); vi.spyOn(mindMapsRepository, 'isAdvancedEnabled').mockResolvedValue(true); vi.spyOn(mindMapsRepository, 'getAssets').mockResolvedValue([]); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Conexão de Plano para Primeiro' })); fireEvent.change(screen.getByLabelText('Rótulo da conexão'), { target: { value: 'depende de' } }); fireEvent.click(screen.getByRole('button', { name: 'Fechar propriedades' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ connections: [expect.objectContaining({ id: 'edge', label: 'depende de' })] })))
+})
+
 test('bloqueia conexão duplicada no sentido inverso com feedback visível', async () => {
   const connected: MindMapDocument = { ...documentWithChildren, connections: [{ id: 'edge', mapId: 'map', sourceId: 'root', targetId: 'a', label: '', color: '#a78bfa', width: 2, dashed: false, directed: false, createdAt: 4, updatedAt: 4 }] }
   vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(connected); vi.spyOn(mindMapsRepository, 'isAdvancedEnabled').mockResolvedValue(true); vi.spyOn(mindMapsRepository, 'getAssets').mockResolvedValue([]); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
