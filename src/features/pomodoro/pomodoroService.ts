@@ -1,4 +1,4 @@
-import { readStoredSettings } from '../../app/providers/SettingsProvider'
+import { readStoredSettings } from '../../services/settings/settingsStorage'
 import { toLocalDateKey } from '../../lib/date'
 import { clockService } from '../../services/clock/ClockService'
 

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { applyStoredSettings } from '../../services/settings/settingsStorage'
 import { useSettings, SettingsProvider } from './SettingsProvider'
 
 function SettingsHarness() {
@@ -24,4 +25,11 @@ test('restaura preferências válidas e limita o volume', () => {
   render(<SettingsProvider><SettingsHarness /></SettingsProvider>)
   expect(screen.getByRole('button')).toHaveTextContent('light')
   expect(JSON.parse(localStorage.getItem('hub.settings.v1') ?? '{}').alarmVolume).toBe(100)
+})
+
+test('aplica preferências importadas imediatamente', async () => {
+  render(<SettingsProvider><SettingsHarness /></SettingsProvider>)
+  act(() => applyStoredSettings({ theme: 'light', soundEffects: false, alarmVolume: 25, environmentVolume: 40, environmentMuted: true, notificationsEnabled: false, pomodoroAutoStart: false, focusMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 20 }))
+  await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('light'))
+  expect(document.documentElement.dataset.theme).toBe('light')
 })

@@ -35,3 +35,10 @@ test('rejeita playlist persistida com categoria desconhecida', () => {
   const external = { ...data, records: { habits: [], focusPlaylists: [{ id: 'x', url: 'https://example.com/a/sets/b', title: 'B', author: 'A', category: 'Lo-fi', createdAt: 1 }] } }
   expect(() => parseBackup(JSON.stringify(external))).toThrow('playlists')
 })
+
+test('aceita preferências completas e rejeita valores fora dos limites', () => {
+  const settings = { theme: 'light', soundEffects: false, alarmVolume: 25, environmentVolume: 40, environmentMuted: true, notificationsEnabled: false, pomodoroAutoStart: false, focusMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 20 }
+  const data = { schemaVersion: 5, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [] }, preferences: { settings } }
+  expect(parseBackup(JSON.stringify(data)).preferences?.settings).toEqual(settings)
+  expect(() => parseBackup(JSON.stringify({ ...data, preferences: { settings: { ...settings, alarmVolume: 101 } } }))).toThrow('preferências')
+})

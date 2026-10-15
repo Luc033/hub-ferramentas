@@ -18,7 +18,7 @@ beforeEach(() => {
   localStorage.clear()
   backupMocks.download.mockReset().mockResolvedValue({ records: { habits: [{ id: 'a' }], tasks: [] } })
   backupMocks.parse.mockReset().mockReturnValue({ records: { habits: [] } })
-  backupMocks.importData.mockReset().mockResolvedValue({ imported: 2, ignored: 1 })
+  backupMocks.importData.mockReset().mockResolvedValue({ imported: 2, ignored: 1, preferencesImported: true })
 })
 
 test('exporta e importa backup completo pelo painel global', async () => {
@@ -31,5 +31,5 @@ test('exporta e importa backup completo pelo painel global', async () => {
   const file = Object.assign(new File(['{}'], 'backup.json', { type: 'application/json' }), { text: () => Promise.resolve('{}') })
   fireEvent.change(screen.getByLabelText('Selecionar arquivo de backup'), { target: { files: [file] } })
   await waitFor(() => expect(backupMocks.importData).toHaveBeenCalledWith(expect.anything(), 'merge'))
-  expect(screen.getByText('2 registro(s) importado(s); 1 preservado(s).')).toBeInTheDocument()
+  expect(screen.getByText('2 registro(s) importado(s); 1 preservado(s). Preferências aplicadas.')).toBeInTheDocument()
 })

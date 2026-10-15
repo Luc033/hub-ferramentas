@@ -4,15 +4,17 @@ import { TASKS_STORE } from '../db/indexedDb'
 import type { Task } from '../../features/tasks/types'
 import type { Board, MindEdge, MindNode, Note } from '../../features/notes/types'
 import type { FocusPlaylist } from '../../features/focus-sounds/types'
+import { applyStoredSettings, isSettings, readStoredSettings, type Settings } from '../settings/settingsStorage'
 
 export interface HubBackup {
   schemaVersion: number
   exportedAt: string
   appVersion: string
   records: { habits: Habit[]; habitCheckins?: HabitCheckin[]; [storeName: string]: unknown[] | undefined }
+  preferences?: { settings?: Settings }
 }
 
-export interface ImportReport { imported: number; ignored: number }
+export interface ImportReport { imported: number; ignored: number; preferencesImported: boolean; preferencesError?: string }
 export type ImportMode = 'merge' | 'replace'
 
 const isHabit = (value: unknown): value is Habit => {
@@ -62,6 +64,10 @@ export function parseBackup(text: string): HubBackup {
   if (backup.records.edges && (!Array.isArray(backup.records.edges) || !backup.records.edges.every(isEdge))) throw new Error('As conexões do backup são inválidas.')
   if (backup.records.focusPlaylists && (!Array.isArray(backup.records.focusPlaylists) || !backup.records.focusPlaylists.every(isFocusPlaylist))) throw new Error('As playlists do backup são inválidas.')
   if (Object.values(backup.records).some((records) => records !== undefined && !Array.isArray(records))) throw new Error('Uma store do backup possui formato inválido.')
+  if (backup.preferences !== undefined) {
+    if (!backup.preferences || typeof backup.preferences !== 'object') throw new Error('As preferências do backup são inválidas.')
+    if (backup.preferences.settings !== undefined && !isSettings(backup.preferences.settings)) throw new Error('As preferências do backup são inválidas.')
+  }
   return backup as HubBackup
 }
 
@@ -72,7 +78,7 @@ export async function createBackup(): Promise<HubBackup> {
   const records: HubBackup['records'] = { habits: [] }
   for (const storeName of stores) records[storeName] = await requestResult(transaction.objectStore(storeName).getAll()) as unknown[]
   await transactionDone(transaction)
-  return { schemaVersion: db.version, exportedAt: new Date().toISOString(), appVersion: '1.0.0', records }
+  return { schemaVersion: db.version, exportedAt: new Date().toISOString(), appVersion: '1.0.0', records, preferences: { settings: readStoredSettings() } }
 }
 
 export async function downloadBackup() {
@@ -150,5 +156,11 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
   window.dispatchEvent(new Event('tasks:changed'))
   window.dispatchEvent(new Event('notes:changed'))
   window.dispatchEvent(new Event('focus-playlists:changed'))
-  return { imported, ignored }
+  let preferencesImported = false
+  let preferencesError: string | undefined
+  if (backup.preferences?.settings) {
+    try { applyStoredSettings(backup.preferences.settings); preferencesImported = true }
+    catch (reason) { preferencesError = reason instanceof Error ? reason.message : 'Não foi possível aplicar as preferências.' }
+  }
+  return { imported, ignored, preferencesImported, preferencesError }
 }
