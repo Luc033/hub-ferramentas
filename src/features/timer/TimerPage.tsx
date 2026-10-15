@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
 import { Button } from '../../components/ui/Button'
 import { audioService } from '../../services/audio/audioService'
-import { clockService, formatDuration } from '../../services/clock/ClockService'
+import { clockService, formatDuration, shouldConfirmClockReplacement } from '../../services/clock/ClockService'
 import { useClock } from '../../services/clock/useClock'
 
 const presets = [1, 5, 15, 30, 60]
@@ -24,7 +24,7 @@ export default function TimerPage() {
   const remaining = ownsClock ? state.remainingMs : 0
 
   const replaceDuration = (milliseconds: number) => {
-    if (state.status === 'running' && !window.confirm(`${state.mode === 'pomodoro' ? 'O Pomodoro' : 'O temporizador'} está em execução. Deseja substituí-lo?`)) return
+    if (shouldConfirmClockReplacement(state, 'timer') && !window.confirm(`${state.mode === 'pomodoro' ? 'O Pomodoro' : 'O temporizador'} possui uma sessão ${state.status === 'paused' ? 'pausada' : 'ativa'}. Deseja substituí-la?`)) return
     clockService.setDuration(milliseconds)
     setError('')
   }

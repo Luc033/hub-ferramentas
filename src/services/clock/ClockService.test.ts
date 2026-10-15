@@ -1,4 +1,4 @@
-import { ClockService, formatDuration } from './ClockService'
+import { ClockService, formatDuration, hasConfiguredClockSession, shouldConfirmClockReplacement } from './ClockService'
 
 test('usa endAt absoluto ao sincronizar e finaliza uma única vez', () => {
   let now = 1_000
@@ -79,4 +79,16 @@ test('persiste o instante de conclusão ao restaurar uma sessão vencida', () =>
   expect(first.getSnapshot().finishedAt).toBe(2_000)
   expect(second.getSnapshot().finishedAt).toBe(2_000)
   first.destroy(); second.destroy()
+})
+
+test('identifica substituições que exigem confirmação', () => {
+  const clock = new ClockService({ storage: null })
+  expect(hasConfiguredClockSession(clock.getSnapshot())).toBe(false)
+  clock.setDuration(60_000, 'timer')
+  expect(hasConfiguredClockSession(clock.getSnapshot())).toBe(true)
+  expect(shouldConfirmClockReplacement(clock.getSnapshot(), 'timer')).toBe(false)
+  expect(shouldConfirmClockReplacement(clock.getSnapshot(), 'pomodoro')).toBe(true)
+  clock.start(); clock.pause()
+  expect(shouldConfirmClockReplacement(clock.getSnapshot(), 'timer')).toBe(true)
+  clock.destroy()
 })

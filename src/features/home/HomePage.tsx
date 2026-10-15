@@ -46,7 +46,7 @@ function ToolCard({ tool, habitSummary, tasksSummary, notesSummary }: { tool: To
     : tool.widget === 'timer'
       ? clock.mode !== 'timer' ? 'Nenhum temporizador ativo' : clock.status === 'running' ? `Em execução · ${formatDuration(clock.remainingMs)}` : clock.status === 'paused' ? `Pausado · ${formatDuration(clock.remainingMs)}` : clock.status === 'alarming' ? 'Alarme' : 'Nenhum temporizador ativo'
       : tool.widget === 'pomodoro'
-        ? clock.mode === 'pomodoro' && ['running', 'paused', 'alarming'].includes(clock.status) ? `${pomodoro.phase === 'focus' ? 'Foco' : pomodoro.phase === 'short-break' ? 'Pausa curta' : 'Pausa longa'} · ${formatDuration(clock.remainingMs)} · ${Math.min(pomodoro.completedInCycle, settings.focusesPerCycle)}/${settings.focusesPerCycle}` : 'Pronto para focar'
+        ? clock.mode === 'pomodoro' && ['ready', 'running', 'paused', 'alarming'].includes(clock.status) ? `${pomodoro.phase === 'focus' ? 'Foco' : pomodoro.phase === 'short-break' ? 'Pausa curta' : 'Pausa longa'} · ${formatDuration(clock.remainingMs)} · ${Math.min(pomodoro.completedInCycle, settings.focusesPerCycle)}/${settings.focusesPerCycle}` : 'Pronto para focar'
         : tool.widget === 'tasks'
           ? tasksSummary === null ? 'Carregando tarefas…' : tasksSummary.enabled ? `${tasksSummary.todo} a fazer · ${tasksSummary.doing} fazendo` : 'Kanban ainda não habilitado'
           : tool.widget === 'notes'

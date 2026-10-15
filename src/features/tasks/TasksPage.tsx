@@ -7,7 +7,7 @@ import { downloadBackup } from '../../services/backup/backupService'
 import { tasksRepository } from '../../services/db/tasksRepository'
 import type { Task, TaskStatus } from './types'
 import { useNavigate } from 'react-router'
-import { clockService } from '../../services/clock/ClockService'
+import { clockService, hasConfiguredClockSession } from '../../services/clock/ClockService'
 
 const columns: { status: TaskStatus; title: string; accent: string }[] = [
   { status: 'todo', title: 'A Fazer', accent: 'text-slate-300' },
@@ -61,7 +61,7 @@ export default function TasksPage() {
   const drop = (event: DragEvent, status: TaskStatus) => { event.preventDefault(); const task = tasks.find((item) => item.id === event.dataTransfer.getData('text/task-id')); if (task) void tasksRepository.move(task, status) }
   const startWithTask = (task: Task, mode: 'timer' | 'pomodoro') => {
     const clock = clockService.getSnapshot()
-    if (clock.status === 'running' && !window.confirm(`Existe uma sessão ${clock.mode === 'pomodoro' ? 'Pomodoro' : 'do Timer'} em execução. Deseja encerrá-la?`)) return
+    if (hasConfiguredClockSession(clock) && !window.confirm(`Existe uma sessão ${clock.mode === 'pomodoro' ? 'Pomodoro' : 'do Timer'} ${clock.status === 'paused' ? 'pausada' : 'configurada'}. Deseja substituí-la?`)) return
     clockService.associateTask(mode, task.id, task.title)
     navigate(mode === 'timer' ? '/timer' : '/pomodoro')
   }

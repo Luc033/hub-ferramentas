@@ -14,6 +14,14 @@ export interface ClockState {
   taskTitle: string | null
 }
 
+export function shouldConfirmClockReplacement(state: ClockState, nextMode: ClockMode) {
+  if (state.status === 'idle') return false
+  if (state.mode !== nextMode) return true
+  return state.status === 'running' || state.status === 'paused'
+}
+
+export function hasConfiguredClockSession(state: ClockState) { return state.status !== 'idle' }
+
 const STORAGE_KEY = 'hub.timer.session.v1'
 const EMPTY_STATE: ClockState = { status: 'idle', mode: 'timer', durationMs: 0, remainingMs: 0, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, taskId: null, taskTitle: null }
 

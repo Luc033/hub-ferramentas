@@ -2,7 +2,7 @@ import { Coffee, FastForward, Pause, Play, RotateCcw, Square, Timer } from 'luci
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
 import { Button } from '../../components/ui/Button'
 import { audioService } from '../../services/audio/audioService'
-import { clockService, formatDuration } from '../../services/clock/ClockService'
+import { clockService, formatDuration, shouldConfirmClockReplacement } from '../../services/clock/ClockService'
 import { useClock } from '../../services/clock/useClock'
 import { pomodoroService } from './pomodoroService'
 import { usePomodoro } from './usePomodoro'
@@ -20,7 +20,7 @@ export default function PomodoroPage() {
   const remaining = ownsClock ? clock.remainingMs : 0
 
   const start = () => {
-    if (clock.status === 'running' && clock.mode === 'timer' && !window.confirm('O Timer está em execução. Deseja encerrá-lo e iniciar o Pomodoro?')) return
+    if (shouldConfirmClockReplacement(clock, 'pomodoro') && !window.confirm(`Existe uma sessão ${clock.mode === 'timer' ? 'do Timer' : 'Pomodoro'} configurada. Deseja encerrá-la e iniciar um novo Pomodoro?`)) return
     audioService.unlock(); pomodoroService.start()
   }
 
