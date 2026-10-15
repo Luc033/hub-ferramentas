@@ -39,6 +39,7 @@ test('rejeita playlist persistida com categoria desconhecida', () => {
 test('aceita preferências completas e rejeita valores fora dos limites', () => {
   const settings = { theme: 'light', soundEffects: false, alarmVolume: 25, environmentVolume: 40, environmentMuted: true, notificationsEnabled: false, pomodoroAutoStart: false, focusMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 20 }
   const data = { schemaVersion: 5, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [] }, preferences: { settings } }
-  expect(parseBackup(JSON.stringify(data)).preferences?.settings).toEqual(settings)
+  expect(parseBackup(JSON.stringify(data)).preferences?.settings).toEqual({ ...settings, focusesPerCycle: 4 })
   expect(() => parseBackup(JSON.stringify({ ...data, preferences: { settings: { ...settings, alarmVolume: 101 } } }))).toThrow('preferências')
+  expect(() => parseBackup(JSON.stringify({ ...data, preferences: { settings: { ...settings, focusesPerCycle: 13 } } }))).toThrow('preferências')
 })

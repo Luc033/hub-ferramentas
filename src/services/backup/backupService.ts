@@ -4,7 +4,7 @@ import { TASKS_STORE } from '../db/indexedDb'
 import type { Task } from '../../features/tasks/types'
 import type { Board, MindEdge, MindNode, Note } from '../../features/notes/types'
 import type { FocusPlaylist } from '../../features/focus-sounds/types'
-import { applyStoredSettings, isSettings, readStoredSettings, type Settings } from '../settings/settingsStorage'
+import { applyStoredSettings, normalizeImportedSettings, readStoredSettings, type Settings } from '../settings/settingsStorage'
 
 export interface HubBackup {
   schemaVersion: number
@@ -66,7 +66,11 @@ export function parseBackup(text: string): HubBackup {
   if (Object.values(backup.records).some((records) => records !== undefined && !Array.isArray(records))) throw new Error('Uma store do backup possui formato inválido.')
   if (backup.preferences !== undefined) {
     if (!backup.preferences || typeof backup.preferences !== 'object') throw new Error('As preferências do backup são inválidas.')
-    if (backup.preferences.settings !== undefined && !isSettings(backup.preferences.settings)) throw new Error('As preferências do backup são inválidas.')
+    if (backup.preferences.settings !== undefined) {
+      const settings = normalizeImportedSettings(backup.preferences.settings)
+      if (!settings) throw new Error('As preferências do backup são inválidas.')
+      backup.preferences.settings = settings
+    }
   }
   return backup as HubBackup
 }

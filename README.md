@@ -28,7 +28,7 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 
 - Rastreador de Hábitos, incluindo marcações datadas após backup/migração.
 - Timer com relógio absoluto, persistência e associação opcional a uma tarefa.
-- Pomodoro automático com fases 25/5/15 configuráveis e pausa longa após quatro focos.
+- Pomodoro automático com fases 25/5/15 e quantidade de focos por ciclo configuráveis.
 - Kanban A Fazer/Fazendo/Concluído, com arraste no desktop, controles acessíveis de mover/reordenar e contagem de focos concluídos por tarefa vinculada.
 - Anotações em texto simples com salvamento automático e criação de nós no mapa mental.
 - Mapa mental com nós, conexões, arraste, pan, zoom, enquadramento e histórico de desfazer/refazer durante a sessão, persistidos localmente.

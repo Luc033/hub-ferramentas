@@ -75,11 +75,12 @@ class PomodoroService {
     const completedByDate = { ...this.state.completedByDate }
 
     if (current === 'focus') {
+      const focusesPerCycle = readStoredSettings().focusesPerCycle
       completedInCycle += 1
       const today = toLocalDateKey()
       completedByDate[today] = (completedByDate[today] ?? 0) + 1
-      next = completedInCycle >= 4 ? 'long-break' : 'short-break'
-      message = next === 'long-break' ? 'Quatro focos concluídos. Hora da pausa longa.' : 'Foco concluído. Hora de uma pausa curta.'
+      next = completedInCycle >= focusesPerCycle ? 'long-break' : 'short-break'
+      message = next === 'long-break' ? `${focusesPerCycle} foco(s) concluído(s). Hora da pausa longa.` : 'Foco concluído. Hora de uma pausa curta.'
       if (clock.taskId) this.recordTaskFocus(clock.taskId, clock.durationMs / 60_000)
     } else {
       next = 'focus'
@@ -112,7 +113,7 @@ class PomodoroService {
       const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '') as Partial<PomodoroState>
       return {
         phase: ['focus', 'short-break', 'long-break'].includes(String(value.phase)) ? value.phase as PomodoroPhase : 'focus',
-        completedInCycle: Number.isInteger(value.completedInCycle) ? Math.min(4, Math.max(0, value.completedInCycle!)) : 0,
+        completedInCycle: Number.isInteger(value.completedInCycle) ? Math.min(readStoredSettings().focusesPerCycle, Math.max(0, value.completedInCycle!)) : 0,
         completedByDate: value.completedByDate && typeof value.completedByDate === 'object' ? value.completedByDate : {},
         transitionMessage: null,
         taskRecordError: null,

@@ -29,7 +29,7 @@ test('restaura preferências válidas e limita o volume', () => {
 
 test('aplica preferências importadas imediatamente', async () => {
   render(<SettingsProvider><SettingsHarness /></SettingsProvider>)
-  act(() => applyStoredSettings({ theme: 'light', soundEffects: false, alarmVolume: 25, environmentVolume: 40, environmentMuted: true, notificationsEnabled: false, pomodoroAutoStart: false, focusMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 20 }))
+  act(() => applyStoredSettings({ theme: 'light', soundEffects: false, alarmVolume: 25, environmentVolume: 40, environmentMuted: true, notificationsEnabled: false, pomodoroAutoStart: false, focusMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 20, focusesPerCycle: 3 }))
   await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('light'))
   expect(document.documentElement.dataset.theme).toBe('light')
 })

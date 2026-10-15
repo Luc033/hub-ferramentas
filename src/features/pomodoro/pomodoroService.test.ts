@@ -37,3 +37,14 @@ test('leva à pausa longa depois de quatro focos concluídos', () => {
   finishPhase()
   expect(pomodoroService.getSnapshot()).toMatchObject({ phase: 'long-break', completedInCycle: 4 })
 })
+
+test('respeita a quantidade configurada de focos por ciclo', () => {
+  localStorage.setItem('hub.settings.v1', JSON.stringify({ pomodoroAutoStart: false, focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, focusesPerCycle: 2 }))
+  const finishPhase = () => { pomodoroService.start(); window.dispatchEvent(new CustomEvent('timer:finished')); vi.advanceTimersByTime(1500) }
+  finishPhase()
+  expect(pomodoroService.getSnapshot().phase).toBe('short-break')
+  finishPhase()
+  expect(pomodoroService.getSnapshot().phase).toBe('focus')
+  finishPhase()
+  expect(pomodoroService.getSnapshot()).toMatchObject({ phase: 'long-break', completedInCycle: 2 })
+})
