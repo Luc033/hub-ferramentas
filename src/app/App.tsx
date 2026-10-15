@@ -22,6 +22,7 @@ export function App() {
     window.addEventListener('focus', sync)
     return () => { document.removeEventListener('visibilitychange', sync); window.removeEventListener('focus', sync) }
   }, [])
+  useEffect(() => { pomodoroService.reconcileClock() }, [])
   useEffect(() => {
     audioService.configure(settings.soundEffects, settings.alarmVolume)
     focusSoundService.setVolume(settings.environmentVolume)

@@ -1,6 +1,6 @@
 import { readStoredSettings } from '../../services/settings/settingsStorage'
 import { toLocalDateKey } from '../../lib/date'
-import { clockService } from '../../services/clock/ClockService'
+import { clockService, type ClockService } from '../../services/clock/ClockService'
 
 export type PomodoroPhase = 'focus' | 'short-break' | 'long-break'
 
@@ -10,10 +10,11 @@ export interface PomodoroState {
   completedByDate: Record<string, number>
   transitionMessage: string | null
   taskRecordError: string | null
+  lastHandledFinishAt: number | null
 }
 
 const STORAGE_KEY = 'hub.pomodoro.v1'
-const INITIAL_STATE: PomodoroState = { phase: 'focus', completedInCycle: 0, completedByDate: {}, transitionMessage: null, taskRecordError: null }
+const INITIAL_STATE: PomodoroState = { phase: 'focus', completedInCycle: 0, completedByDate: {}, transitionMessage: null, taskRecordError: null, lastHandledFinishAt: null }
 
 const phaseMinutes = (phase: PomodoroPhase) => {
   const settings = readStoredSettings()
@@ -22,13 +23,18 @@ const phaseMinutes = (phase: PomodoroPhase) => {
   return settings.longBreakMinutes
 }
 
-class PomodoroService {
-  private state = this.restore()
+export class PomodoroService {
+  private state: PomodoroState
   private listeners = new Set<() => void>()
   private transitionTimer: ReturnType<typeof setTimeout> | null = null
+  private clock: ClockService
+  private storage: Pick<Storage, 'getItem' | 'setItem'>
 
-  constructor() {
-    if (typeof window !== 'undefined') window.addEventListener('timer:finished', this.handleClockFinished)
+  constructor(options: { clock?: ClockService; storage?: Pick<Storage, 'getItem' | 'setItem'>; listen?: boolean } = {}) {
+    this.clock = options.clock ?? clockService
+    this.storage = options.storage ?? localStorage
+    this.state = this.restore()
+    if (options.listen !== false && typeof window !== 'undefined') window.addEventListener('timer:finished', this.handleClockFinished)
   }
 
   getSnapshot = () => this.state
@@ -36,17 +42,17 @@ class PomodoroService {
   completedToday = () => this.state.completedByDate[toLocalDateKey()] ?? 0
 
   prepare(startImmediately = false) {
-    clockService.setDuration(phaseMinutes(this.state.phase) * 60_000, 'pomodoro')
-    if (startImmediately) clockService.start()
+    this.clock.setDuration(phaseMinutes(this.state.phase) * 60_000, 'pomodoro')
+    if (startImmediately) this.clock.start()
   }
 
   start() {
-    const clock = clockService.getSnapshot()
+    const clock = this.clock.getSnapshot()
     if (clock.mode !== 'pomodoro' || clock.status === 'idle' || clock.status === 'alarming') this.prepare(false)
-    clockService.start()
+    this.clock.start()
   }
 
-  pause() { if (clockService.getSnapshot().mode === 'pomodoro') clockService.pause() }
+  pause() { if (this.clock.getSnapshot().mode === 'pomodoro') this.clock.pause() }
   restart() { this.prepare(true) }
   dismissTaskRecordError() { if (this.state.taskRecordError) { this.state = { ...this.state, taskRecordError: null }; this.commit() } }
 
@@ -60,14 +66,22 @@ class PomodoroService {
   endCycle() {
     if (this.transitionTimer) clearTimeout(this.transitionTimer)
     this.transitionTimer = null
-    if (clockService.getSnapshot().mode === 'pomodoro') clockService.reset()
+    if (this.clock.getSnapshot().mode === 'pomodoro') this.clock.reset()
     this.state = { ...INITIAL_STATE, completedByDate: this.state.completedByDate }
     this.commit()
   }
 
+  reconcileClock() {
+    const clock = this.clock.getSnapshot()
+    if (clock.mode !== 'pomodoro' || clock.status !== 'alarming') return
+    if (clock.finishedAt !== null && this.state.lastHandledFinishAt === clock.finishedAt) this.scheduleNextPhase()
+    else this.handleClockFinished()
+  }
+
   private handleClockFinished = () => {
-    const clock = clockService.getSnapshot()
+    const clock = this.clock.getSnapshot()
     if (clock.mode !== 'pomodoro' || this.transitionTimer) return
+    if (clock.finishedAt !== null && this.state.lastHandledFinishAt === clock.finishedAt) { this.scheduleNextPhase(); return }
     const current = this.state.phase
     let next: PomodoroPhase
     let message: string
@@ -88,8 +102,13 @@ class PomodoroService {
       if (current === 'long-break') completedInCycle = 0
     }
 
-    this.state = { phase: next, completedInCycle, completedByDate, transitionMessage: message, taskRecordError: null }
+    this.state = { phase: next, completedInCycle, completedByDate, transitionMessage: message, taskRecordError: null, lastHandledFinishAt: clock.finishedAt }
     this.commit()
+    this.scheduleNextPhase()
+  }
+
+  private scheduleNextPhase() {
+    if (this.transitionTimer) return
     this.transitionTimer = setTimeout(() => {
       this.transitionTimer = null
       this.state = { ...this.state, transitionMessage: null }
@@ -99,7 +118,7 @@ class PomodoroService {
   }
 
   private commit() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state))
+    this.storage.setItem(STORAGE_KEY, JSON.stringify(this.state))
     this.listeners.forEach((listener) => listener())
   }
   private recordTaskFocus(taskId: string, minutes: number) {
@@ -110,13 +129,14 @@ class PomodoroService {
   }
   private restore(): PomodoroState {
     try {
-      const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '') as Partial<PomodoroState>
+      const value = JSON.parse(this.storage.getItem(STORAGE_KEY) ?? '') as Partial<PomodoroState>
       return {
         phase: ['focus', 'short-break', 'long-break'].includes(String(value.phase)) ? value.phase as PomodoroPhase : 'focus',
         completedInCycle: Number.isInteger(value.completedInCycle) ? Math.min(readStoredSettings().focusesPerCycle, Math.max(0, value.completedInCycle!)) : 0,
         completedByDate: value.completedByDate && typeof value.completedByDate === 'object' ? value.completedByDate : {},
         transitionMessage: null,
         taskRecordError: null,
+        lastHandledFinishAt: typeof value.lastHandledFinishAt === 'number' && Number.isFinite(value.lastHandledFinishAt) ? value.lastHandledFinishAt : null,
       }
     } catch { return { ...INITIAL_STATE } }
   }

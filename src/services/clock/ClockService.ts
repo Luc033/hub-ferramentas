@@ -36,6 +36,7 @@ export class ClockService {
     this.now = options.now ?? Date.now
     this.storage = options.storage === undefined ? (typeof localStorage === 'undefined' ? null : localStorage) : options.storage
     this.state = this.restore()
+    if (this.state.status === 'alarming') this.storage?.setItem(STORAGE_KEY, JSON.stringify(this.state))
     if (this.state.status === 'running') { this.sync(); this.startTicker() }
   }
 

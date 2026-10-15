@@ -69,3 +69,14 @@ test('pausa e retoma a partir do saldo real', () => {
 test('formata duração para o display legado', () => {
   expect(formatDuration(3_661_000)).toBe('01:01:01')
 })
+
+test('persiste o instante de conclusão ao restaurar uma sessão vencida', () => {
+  const values = new Map<string, string>()
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) }, removeItem: (key: string) => { values.delete(key) } }
+  values.set('hub.timer.session.v1', JSON.stringify({ status: 'running', mode: 'pomodoro', durationMs: 1_000, remainingMs: 1_000, startedAt: 0, endAt: 1_000, finishedAt: null, notificationSent: false, taskId: null, taskTitle: null }))
+  const first = new ClockService({ now: () => 2_000, storage })
+  const second = new ClockService({ now: () => 3_000, storage })
+  expect(first.getSnapshot().finishedAt).toBe(2_000)
+  expect(second.getSnapshot().finishedAt).toBe(2_000)
+  first.destroy(); second.destroy()
+})
