@@ -46,6 +46,8 @@ button:disabled { cursor: not-allowed; }
 .mind-map-topic.is-drop-target.drop-before::before { top: -9px; }
 .mind-map-topic.is-drop-target.drop-after::after { bottom: -9px; }
 .mind-map-topic-root { border-width: 2px; border-color: color-mix(in srgb, var(--brand) 70%, var(--border)); background: color-mix(in srgb, var(--brand) 18%, var(--surface)); color: var(--text-strong); font-size: 1.08rem; font-weight: 700; }
+.mind-map-theme-minimal .mind-map-topic { border-radius: 6px; box-shadow: 0 3px 10px rgb(0 0 0 / .14); }
+.mind-map-theme-colorful .mind-map-topic:not(.mind-map-topic-root) { border-color: color-mix(in srgb, var(--brand) 55%, var(--border)); background: color-mix(in srgb, var(--brand) 13%, var(--surface)); }
 .mind-map-collapse { position: absolute; top: 50%; display: inline-flex; min-width: 1.7rem; min-height: 1.7rem; transform: translateY(-50%); align-items: center; justify-content: center; gap: .1rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-muted); color: var(--text-muted); font-size: .65rem; }
 .topic-action { display: inline-flex; min-height: 2.5rem; align-items: center; justify-content: center; gap: .35rem; border-radius: .7rem; padding: .45rem .7rem; color: var(--text); font-size: .75rem; font-weight: 600; }
 .topic-action:hover:not(:disabled) { background: color-mix(in srgb, var(--border) 60%, transparent); }

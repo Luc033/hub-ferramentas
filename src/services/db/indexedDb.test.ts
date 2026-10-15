@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach } from 'vitest'
-import { AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_SCHEMA_VERSION, MIND_MAP_TOPICS_STORE, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToMindMapSchema, upgradeToProductivitySchema } from './indexedDb'
+import { AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_SCHEMA_VERSION, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, MIND_MAP_MEDIA_SCHEMA_VERSION, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToMindMapMediaSchema, upgradeToMindMapSchema, upgradeToProductivitySchema } from './indexedDb'
 
 async function deleteTestDatabase() {
   closeDatabase()
@@ -75,4 +75,11 @@ test('adiciona mapas mentais em stores próprias sem reinterpretar o quadro livr
   expect(upgraded.version).toBe(MIND_MAP_SCHEMA_VERSION)
   expect(upgraded.objectStoreNames.contains(MIND_MAPS_STORE)).toBe(true); expect(upgraded.objectStoreNames.contains(MIND_MAP_TOPICS_STORE)).toBe(true)
   expect(await new Promise((resolve, reject) => { const request = upgraded.transaction(NODES_STORE).objectStore(NODES_STORE).get('legacy-node'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })).toMatchObject({ text: 'Livre', boardId: 'main' })
+})
+
+test('habilita recursos visuais na v7 sem alterar mapas e nós existentes', async () => {
+  await upgradeToMindMapSchema(); const before = await openDatabase(); const tx = before.transaction(MIND_MAPS_STORE, 'readwrite'); tx.objectStore(MIND_MAPS_STORE).add({ id: 'map', schemaVersion: 1, name: 'Seguro', rootId: 'root', layout: 'radial', viewport: { panX: 0, panY: 0, zoom: 1 }, createdAt: 1, updatedAt: 1 }); await transactionDone(tx)
+  await upgradeToMindMapMediaSchema(); const upgraded = await openDatabase()
+  expect(upgraded.version).toBe(MIND_MAP_MEDIA_SCHEMA_VERSION); expect(upgraded.objectStoreNames.contains(MIND_MAP_CONNECTIONS_STORE)).toBe(true); expect(upgraded.objectStoreNames.contains(MIND_MAP_ASSETS_STORE)).toBe(true)
+  expect(await new Promise((resolve, reject) => { const request = upgraded.transaction(MIND_MAPS_STORE).objectStore(MIND_MAPS_STORE).get('map'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })).toMatchObject({ name: 'Seguro' })
 })

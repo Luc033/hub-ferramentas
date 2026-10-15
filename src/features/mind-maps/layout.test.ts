@@ -29,3 +29,9 @@ test('respeita posições manuais e mantém tópico independente visível', () =
   expect(layout.topics.get('a')).toMatchObject({ x: 500, y: 80 })
   expect(layout.topics.get('free')).toMatchObject({ x: -500, y: 120 })
 })
+
+test('oferece layouts à direita e organograma com eixos consistentes', () => {
+  const topics = [topic('root', null, 0), topic('a', 'root', 0), topic('b', 'root', 1), topic('a1', 'a', 0)]
+  const right = calculateRadialLayout(topics, 'root', 'right'); expect(right.topics.get('a')!.x).toBeGreaterThan(right.topics.get('root')!.x); expect(right.topics.get('a1')!.x).toBeGreaterThan(right.topics.get('a')!.x)
+  const org = calculateRadialLayout(topics, 'root', 'orgchart'); expect(org.topics.get('a')!.y).toBeGreaterThan(org.topics.get('root')!.y); expect(org.topics.get('a1')!.y).toBeGreaterThan(org.topics.get('a')!.y)
+})

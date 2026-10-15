@@ -22,7 +22,7 @@ O projeto abre a base legada `HabitTrackerDB` sem elevar sua versão automaticam
 
 Anotações e Mapa Mental usam a versão nativa 4, com as stores `notes`, `boards`, `nodes` e `edges`. A área criativa só eleva o schema depois de baixar um backup e receber confirmação. A migração é aditiva: mantém `habits`, `habitCheckins` e `tasks`, criando qualquer store intermediária ausente. O conteúdo das notas é tratado como texto simples.
 
-O editor hierárquico de Mapas Mentais usa a versão nativa 6 e stores próprias, `mindMaps` e `mindMapTopics`. Essa separação preserva o quadro livre legado sem inventar relações de pai entre seus nós. A biblioteca de mapas também exige backup e confirmação antes da migração aditiva. Cada mapa mantém uma única raiz, tópicos ordenados e viewport independente; os dados entram no backup global e são validados antes da restauração.
+O editor hierárquico de Mapas Mentais começa na versão nativa 6 com as stores próprias `mindMaps` e `mindMapTopics`. Os recursos visuais MM-3 usam uma expansão opcional para a versão 7, com `mindMapConnections` e `mindMapAssets`. As duas migrações exigem backup e confirmação e são aditivas. A separação preserva o quadro livre legado sem inventar relações de pai entre seus nós. Conexões transversais não mudam a hierarquia; imagens PNG, JPEG e WebP ficam somente no IndexedDB, com limite de 5 MB, e o backup global converte esses blobs para data URLs validadas durante exportação e restauração.
 
 As preferências de interface e a sessão ativa do Timer usam chaves locais versionadas no `localStorage`. Essa política evita elevar silenciosamente a versão de uma base legada apenas para trocar tema ou volume. Hábitos e check-ins continuam no IndexedDB e não são duplicados no `localStorage`.
 
@@ -36,6 +36,7 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Biblioteca de mapas mentais com criação, busca, ordenação, renomeação, duplicação e exclusão confirmada.
 - Editor hierárquico com raiz única, filhos e irmãos, edição inline, recolhimento, exclusão com desfazer, layout radial, pan, zoom, enquadramento e autosave transacional.
 - Interações MM-2 com reparent e reordenação por Pointer Events, alternativa acessível “Mover para”, posições manuais, tópicos independentes, seleção múltipla, busca, duplicação e clipboard de ramificações.
+- Recursos MM-3 para mapas mentais: layouts radial, à direita, organograma e manual; temas e estilos por tópico; ícones, notas em texto simples, links seguros e imagens locais; conexões transversais rotuladas; Outline e modo de foco.
 - Quadro livre legado com nós, conexões, arraste, pan, zoom e histórico de sessão, preservado separadamente.
 - Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O catálogo só exibe URLs aprovadas pelo oEmbed em tempo de execução, e o miniplayer global mantém a reprodução durante a navegação interna.
 
@@ -43,4 +44,4 @@ Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação 
 
 Os sons precisam de uma interação do usuário para iniciar, conforme as regras de reprodução dos navegadores. Eles não continuam com o navegador fechado. Rádio e playlists dependem de conexão, disponibilidade regional e regras dos provedores. Playlists adicionadas ficam na store `focusPlaylists` do IndexedDB nativo v5; nenhuma faixa é extraída, baixada ou enviada a um backend.
 
-As próximas etapas do editor de mapas reservam temas e estilos, conexões transversais, notas e links, mídia local, Outline, exportações próprias e robustez multiaba. Esses controles não aparecem como ações falsas.
+As próximas etapas do editor de mapas reservam exportações próprias em JSON/PNG/SVG, histórico persistente e robustez multiaba. Esses controles não aparecem como ações falsas.

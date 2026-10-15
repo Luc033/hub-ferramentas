@@ -53,3 +53,13 @@ test('valida a integridade das árvores de mapas mentais no backup', () => {
   expect(parseBackup(JSON.stringify({ ...data, records: { habits: [], mindMaps: [{ ...map, layout: 'manual' }], mindMapTopics: [{ ...root, position: { x: 10, y: 20 }, manualPosition: true }] } })).records.mindMaps?.[0]).toMatchObject({ layout: 'manual' })
   expect(() => parseBackup(JSON.stringify({ ...data, records: { habits: [], mindMaps: [map], mindMapTopics: [{ ...root, position: { x: Number.NaN, y: 0 } }] } }))).toThrow('tópicos')
 })
+
+test('valida conexões e imagens MM-3 sem aceitar referências órfãs', () => {
+  const map = { id: 'map', schemaVersion: 1, name: 'Visual', rootId: 'root', layout: 'orgchart', theme: 'minimal', viewport: { panX: 0, panY: 0, zoom: 1 }, createdAt: 1, updatedAt: 1 }
+  const root = { id: 'root', mapId: 'map', parentId: null, order: 0, text: 'Raiz', collapsed: false, createdAt: 1, updatedAt: 1 }; const child = { ...root, id: 'child', parentId: 'root', imageAssetId: 'asset' }
+  const connection = { id: 'connection', mapId: 'map', sourceId: 'root', targetId: 'child', label: 'relaciona', color: '#ffffff', width: 2, dashed: false, directed: true, createdAt: 1, updatedAt: 1 }
+  const asset = { id: 'asset', mapId: 'map', name: 'foto.png', mimeType: 'image/png', size: 1, createdAt: 1, dataUrl: 'data:image/png;base64,YQ==' }
+  const data = { schemaVersion: 7, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [], mindMaps: [map], mindMapTopics: [root, child], mindMapConnections: [connection], mindMapAssets: [asset] } }
+  expect(parseBackup(JSON.stringify(data)).records.mindMapConnections).toEqual([connection])
+  expect(() => parseBackup(JSON.stringify({ ...data, records: { ...data.records, mindMapConnections: [{ ...connection, targetId: 'missing' }] } }))).toThrow('conexões')
+})

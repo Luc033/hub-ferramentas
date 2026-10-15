@@ -39,3 +39,11 @@ test('persiste posição manual e tópico independente sem afetar a raiz', async
   await mindMapsRepository.save({ map: { ...original.map, layout: 'manual' }, topics })
   expect(await mindMapsRepository.get(original.map.id)).toMatchObject({ map: { layout: 'manual', rootId: original.map.rootId }, topics: expect.arrayContaining([expect.objectContaining({ id: child.topic.id, parentId: null, position: { x: 320, y: -90 } })]) })
 })
+
+test('persiste conexões e imagens na v7 e duplica seus ids sem alterar a hierarquia', async () => {
+  await mindMapsRepository.enableAdvanced(); const original = await mindMapsRepository.create('Visual'); const child = addTopic(original.topics, original.map.rootId, 'child'); const asset = await mindMapsRepository.saveAsset(original.map.id, new File(['image'], 'ideia.png', { type: 'image/png' }))
+  const topics = child.topics.map((topic) => topic.id === child.topic.id ? { ...topic, imageAssetId: asset.id, note: 'Texto simples', icon: '💡' } : topic); const now = Date.now()
+  await mindMapsRepository.save({ map: { ...original.map, layout: 'right', theme: 'colorful' }, topics, connections: [{ id: 'connection', mapId: original.map.id, sourceId: original.map.rootId, targetId: child.topic.id, label: 'depende', color: '#a78bfa', width: 2, dashed: true, directed: true, createdAt: now, updatedAt: now }] })
+  const saved = await mindMapsRepository.get(original.map.id); expect(saved).toMatchObject({ map: { layout: 'right', theme: 'colorful' }, connections: [expect.objectContaining({ label: 'depende', directed: true })] }); expect(await mindMapsRepository.getAssets(original.map.id)).toHaveLength(1)
+  const copy = await mindMapsRepository.duplicate(original.map.id); expect(copy.connections?.[0].id).not.toBe('connection'); expect(copy.connections?.[0].sourceId).toBe(copy.map.rootId); expect(await mindMapsRepository.getAssets(copy.map.id)).toHaveLength(1)
+})

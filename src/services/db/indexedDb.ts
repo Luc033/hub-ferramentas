@@ -16,6 +16,9 @@ export const AUDIO_SCHEMA_VERSION = 5
 export const MIND_MAPS_STORE = 'mindMaps'
 export const MIND_MAP_TOPICS_STORE = 'mindMapTopics'
 export const MIND_MAP_SCHEMA_VERSION = 6
+export const MIND_MAP_CONNECTIONS_STORE = 'mindMapConnections'
+export const MIND_MAP_ASSETS_STORE = 'mindMapAssets'
+export const MIND_MAP_MEDIA_SCHEMA_VERSION = 7
 
 let connection: IDBDatabase | null = null
 let opening: Promise<IDBDatabase> | null = null
@@ -242,6 +245,32 @@ export async function upgradeToMindMapSchema(): Promise<HabitDatabaseInfo> {
     request.onsuccess = () => { configureConnection(request.result); resolve() }
     request.onerror = () => reject(request.error ?? new Error('Não foi possível criar a biblioteca de mapas mentais.'))
     request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de habilitar Mapas Mentais.'))
+  })
+  return inspectDatabase()
+}
+
+export async function upgradeToMindMapMediaSchema(): Promise<HabitDatabaseInfo> {
+  const current = await openDatabase()
+  if ([MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE].every((name) => current.objectStoreNames.contains(name))) return inspectDatabase()
+  if (current.version > MIND_MAP_MEDIA_SCHEMA_VERSION) throw new Error(`A base usa a versão ${current.version}, mais nova que esta aplicação.`)
+  if (![MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE].every((name) => current.objectStoreNames.contains(name))) await upgradeToMindMapSchema()
+  closeDatabase()
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, MIND_MAP_MEDIA_SCHEMA_VERSION)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(MIND_MAP_CONNECTIONS_STORE)) {
+        const store = db.createObjectStore(MIND_MAP_CONNECTIONS_STORE, { keyPath: 'id' })
+        store.createIndex('mapId', 'mapId', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(MIND_MAP_ASSETS_STORE)) {
+        const store = db.createObjectStore(MIND_MAP_ASSETS_STORE, { keyPath: 'id' })
+        store.createIndex('mapId', 'mapId', { unique: false })
+      }
+    }
+    request.onsuccess = () => { configureConnection(request.result); resolve() }
+    request.onerror = () => reject(request.error ?? new Error('Não foi possível habilitar os recursos visuais dos mapas.'))
+    request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de habilitar os recursos visuais.'))
   })
   return inspectDatabase()
 }

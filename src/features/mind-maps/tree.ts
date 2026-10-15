@@ -11,7 +11,7 @@ export function normalizeTopicOrders(topics: MindMapTopic[]) {
 
 export function validateMindMapDocument(map: MindMap, topics: MindMapTopic[]) {
   if (!map.id || !map.rootId || !map.name.trim() || map.name.trim().length > 100) throw new Error('Metadados do mapa inválidos.')
-  if (!['radial', 'manual'].includes(map.layout) || !Number.isFinite(map.viewport.panX) || !Number.isFinite(map.viewport.panY) || !Number.isFinite(map.viewport.zoom) || map.viewport.zoom < .25 || map.viewport.zoom > 3) throw new Error('Viewport ou layout do mapa inválido.')
+  if (!['radial', 'manual', 'right', 'orgchart'].includes(map.layout) || !Number.isFinite(map.viewport.panX) || !Number.isFinite(map.viewport.panY) || !Number.isFinite(map.viewport.zoom) || map.viewport.zoom < .25 || map.viewport.zoom > 3) throw new Error('Viewport ou layout do mapa inválido.')
   const ids = new Set<string>()
   for (const topic of topics) {
     const validPosition = topic.position === undefined || Number.isFinite(topic.position.x) && Number.isFinite(topic.position.y)

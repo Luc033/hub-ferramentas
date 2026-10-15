@@ -1,4 +1,4 @@
-import type { MindMapTopic } from './types'
+import type { MindMapLayout as LayoutMode, MindMapTopic } from './types'
 import { visibleTopics } from './tree'
 
 export interface TopicLayout { id: string; x: number; y: number; width: number; height: number; side: -1 | 0 | 1; depth: number }
@@ -16,7 +16,7 @@ function topicHeight(text: string, root: boolean) {
   return Math.max(root ? 72 : 56, 28 + lines * 20)
 }
 
-export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string, mode: 'radial' | 'manual' = 'radial'): MindMapLayout {
+export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string, mode: LayoutMode = 'radial'): MindMapLayout {
   const visible = visibleTopics(allTopics, rootId)
   const byId = new Map(visible.map((topic) => [topic.id, topic]))
   const children = new Map<string, MindMapTopic[]>()
@@ -57,7 +57,18 @@ export function calculateRadialLayout(allTopics: MindMapTopic[], rootId: string,
     descendants.forEach((child) => { const span = heights.get(child.id) ?? topicHeight(child.text, false); placeFloating(child, depth + 1, x + TOPIC_WIDTH + LEVEL_GAP, cursor + span / 2); cursor += span + SIBLING_GAP })
   }
   floating.forEach((topic, index) => { measure(topic.id); placeFloating(topic, 0, 380, index * 150) })
-  if (mode === 'manual') {
+  if (mode === 'right' || mode === 'orgchart') {
+    const rooted = [...positioned.values()].filter((item) => byId.get(item.id)?.parentId !== null || item.id === rootId)
+    const levels = new Map<number, TopicLayout[]>(); rooted.forEach((item) => levels.set(item.depth, [...(levels.get(item.depth) ?? []), item]))
+    if (mode === 'right') levels.forEach((items, depth) => {
+      const total = items.reduce((sum, item) => sum + item.height, 0) + Math.max(0, items.length - 1) * SIBLING_GAP; let y = -total / 2
+      items.forEach((item) => { positioned.set(item.id, { ...item, x: depth * (TOPIC_WIDTH + LEVEL_GAP) - (depth ? 0 : ROOT_WIDTH / 2), y, side: depth ? 1 : 0 }); y += item.height + SIBLING_GAP })
+    })
+    if (mode === 'orgchart') levels.forEach((items, depth) => {
+      const total = items.reduce((sum, item) => sum + item.width, 0) + Math.max(0, items.length - 1) * 44; let x = -total / 2
+      items.forEach((item) => { positioned.set(item.id, { ...item, x, y: depth * 130 - item.height / 2, side: 0 }); x += item.width + 44 })
+    })
+  } else if (mode === 'manual') {
     positioned.forEach((value, id) => { const position = byId.get(id)?.position; if (position) positioned.set(id, { ...value, x: position.x, y: position.y }) })
   }
   const values = [...positioned.values()]
