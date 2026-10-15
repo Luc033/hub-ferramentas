@@ -85,10 +85,32 @@ test('cria tópico flutuante no centro visível sem exigir seleção', async () 
   await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ parentId: null, manualPosition: true, position: expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }) })]) })))
 })
 
+test('cria tópico flutuante no ponto do duplo clique no canvas', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); const save = vi.spyOn(mindMapsRepository, 'save').mockImplementation(async (value) => value); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  const canvas = await screen.findByLabelText('Canvas do mapa mental'); fireEvent.doubleClick(canvas, { clientX: 420, clientY: 260 })
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ topics: expect.arrayContaining([expect.objectContaining({ parentId: null, position: { x: 210, y: 132 } })]) })))
+})
+
 test('abre ajuda pelo atalho de interrogação e fecha com Escape', async () => {
   vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
   const canvas = (render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>), await screen.findByLabelText('Canvas do mapa mental'))
   fireEvent.keyDown(canvas, { key: '?' }); expect(screen.getByRole('dialog', { name: 'Atalhos do editor' })).toBeInTheDocument(); fireEvent.keyDown(window, { key: 'Escape' }); await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+test('abre a busca pelo atalho Ctrl/Cmd + F', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  fireEvent.keyDown(await screen.findByLabelText('Canvas do mapa mental'), { key: 'f', ctrlKey: true }); expect(screen.getByLabelText('Buscar no mapa')).toBeInTheDocument()
+})
+
+test('arrasta o fundo com botão central para deslocar o canvas', async () => {
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(document); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined)
+  render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
+  const canvas = await screen.findByLabelText('Canvas do mapa mental'); Object.defineProperty(canvas, 'setPointerCapture', { value: vi.fn() })
+  const pointer = (type: string, x: number, y: number, button = 0) => { const event = new MouseEvent(type, { bubbles: true, button, clientX: x, clientY: y }); Object.defineProperty(event, 'pointerId', { value: 1 }); fireEvent(canvas, event) }
+  pointer('pointerdown', 100, 100, 1); pointer('pointermove', 160, 130); pointer('pointerup', 160, 130)
+  expect(canvas.firstElementChild).toHaveStyle({ transform: 'translate(180px, 130px) scale(1)' })
 })
 
 test('edita e reordena tópicos diretamente pelo Outline', async () => {
