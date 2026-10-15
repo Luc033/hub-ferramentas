@@ -14,6 +14,7 @@ import { MindMapOutline } from './MindMapOutline'
 import { MindMapPropertiesPanel } from './MindMapPropertiesPanel'
 import { MindMapShortcutsDialog } from './MindMapShortcutsDialog'
 import { formatImageBytes, prepareMindMapImage } from './imageProcessing'
+import { hasConnectionBetween } from './connectionRules'
 
 type SaveState = 'saved' | 'saving' | 'error'
 interface History { past: MindMapDocument[]; future: MindMapDocument[] }
@@ -445,9 +446,10 @@ export default function MindMapEditorPage() {
     const now = Date.now(); commitTopics(document.topics.map((topic) => selectedIds.has(topic.id) ? { ...topic, ...changes, updatedAt: now } : topic))
   }
   const createConnection = (targetId: string) => {
-    if (!document || !connectingFrom || connectingFrom === targetId) return
-    const duplicate = (document.connections ?? []).some((item) => item.sourceId === connectingFrom && item.targetId === targetId)
-    if (!duplicate) { const now = Date.now(); const connection: MindMapConnection = { id: crypto.randomUUID(), mapId: document.map.id, sourceId: connectingFrom, targetId, label: '', color: '#a78bfa', width: 2, dashed: false, directed: false, createdAt: now, updatedAt: now }; commitDocument({ ...document, connections: [...(document.connections ?? []), connection] }) }
+    if (!document || !connectingFrom) return
+    if (connectingFrom === targetId) { setIntegrationNotice({ error: true, text: 'Escolha outro tópico para criar a conexão.' }); setConnectingFrom(null); return }
+    if (hasConnectionBetween(document.connections ?? [], connectingFrom, targetId)) { setIntegrationNotice({ error: true, text: 'Já existe uma conexão entre esses tópicos.' }); setConnectingFrom(null); return }
+    const now = Date.now(); const connection: MindMapConnection = { id: crypto.randomUUID(), mapId: document.map.id, sourceId: connectingFrom, targetId, label: '', color: '#a78bfa', width: 2, dashed: false, directed: false, createdAt: now, updatedAt: now }; commitDocument({ ...document, connections: [...(document.connections ?? []), connection] }); setIntegrationNotice({ error: false, text: 'Conexão criada.' })
     setConnectingFrom(null)
   }
   const addLink = () => {

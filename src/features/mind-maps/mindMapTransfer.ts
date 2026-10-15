@@ -1,6 +1,7 @@
 import { calculateRadialLayout, connectionPath, transverseConnectionPath } from './layout'
 import { validateMindMapDocument } from './tree'
 import type { MindMap, MindMapAsset, MindMapConnection, MindMapDocument, MindMapTopic } from './types'
+import { connectionIdentityKey } from './connectionRules'
 
 export const MIND_MAP_FILE_FORMAT = 'hub-mind-map'
 export const MIND_MAP_FILE_VERSION = 1
@@ -63,7 +64,7 @@ export function parseMindMapFile(text: string): MindMapFile {
   const file = value as unknown as MindMapFile
   if (file.integrity.topics !== file.topics.length || file.integrity.connections !== file.connections.length || file.integrity.assets !== file.assets.length) throw new Error('A verificação de integridade do arquivo falhou.')
   const ids = new Set(file.topics.map(({ id }) => id)); const assetIds = new Set(file.assets.map(({ id }) => id))
-  const relationKeys = new Set<string>(); const repeatedRelation = file.connections.some((item) => { const endpoints = item.directed ? `${item.sourceId}>${item.targetId}` : [item.sourceId, item.targetId].sort().join('~'); const key = `${endpoints}\u0000${item.label}`; if (relationKeys.has(key)) return true; relationKeys.add(key); return false })
+  const relationKeys = new Set<string>(); const repeatedRelation = file.connections.some((item) => { const key = connectionIdentityKey(item); if (relationKeys.has(key)) return true; relationKeys.add(key); return false })
   if (ids.size !== file.topics.length || new Set(file.connections.map(({ id }) => id)).size !== file.connections.length || assetIds.size !== file.assets.length || repeatedRelation) throw new Error('O arquivo contém identificadores duplicados.')
   if (file.topics.some((topic) => topic.mapId !== file.map.id || topic.imageAssetId && !assetIds.has(topic.imageAssetId)) || file.assets.some((asset) => asset.mapId !== file.map.id) || file.connections.some((item) => item.mapId !== file.map.id || !ids.has(item.sourceId) || !ids.has(item.targetId))) throw new Error('O arquivo contém referências inválidas.')
   validateMindMapDocument(file.map, file.topics); return file

@@ -48,6 +48,13 @@ test('persiste conexões e imagens na v7 e duplica seus ids sem alterar a hierar
   const copy = await mindMapsRepository.duplicate(original.map.id); expect(copy.connections?.[0].id).not.toBe('connection'); expect(copy.connections?.[0].sourceId).toBe(copy.map.rootId); expect(await mindMapsRepository.getAssets(copy.map.id)).toHaveLength(1)
 })
 
+test('remove imagens que deixam de ser usadas sem afetar o mapa', async () => {
+  await mindMapsRepository.enableAdvanced(); const original = await mindMapsRepository.create('Integridade'); const child = addTopic(original.topics, original.map.rootId, 'child'); const asset = await mindMapsRepository.saveAsset(original.map.id, new File(['image'], 'temporaria.png', { type: 'image/png' }))
+  const topics = child.topics.map((topic) => topic.id === child.topic.id ? { ...topic, imageAssetId: asset.id } : topic); const saved = await mindMapsRepository.save({ map: original.map, topics, connections: [] })
+  expect(await mindMapsRepository.getAssets(original.map.id)).toHaveLength(1)
+  await mindMapsRepository.save({ ...saved, topics: saved.topics.map(({ imageAssetId: _asset, ...topic }) => topic) }); expect(await mindMapsRepository.getAssets(original.map.id)).toEqual([])
+})
+
 test('importa documento atomicamente e cria tópico a partir de nota sem alterar a origem', async () => {
   const now = Date.now(); const imported = { map: { id: 'imported', schemaVersion: 1 as const, name: 'Importado', rootId: 'imported-root', layout: 'radial' as const, viewport: { panX: 0, panY: 0, zoom: 1 }, createdAt: now, updatedAt: now }, topics: [{ id: 'imported-root', mapId: 'imported', parentId: null, order: 0, text: 'Raiz', collapsed: false, createdAt: now, updatedAt: now }], connections: [] }
   await mindMapsRepository.importDocument(imported, []); await mindMapsRepository.addTopicFromNote('imported', 'Minha nota', 'Conteúdo preservado')

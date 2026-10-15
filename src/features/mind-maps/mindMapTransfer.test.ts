@@ -34,6 +34,8 @@ test('recusa ciclos, referências órfãs e contadores adulterados', async () =>
   expect(() => parseMindMapFile(JSON.stringify({ ...file, integrity: { ...file.integrity, topics: 99 } }))).toThrow('integridade')
   expect(() => parseMindMapFile(JSON.stringify({ ...file, topics: file.topics.map((topic) => topic.id === 'root' ? { ...topic, parentId: 'child' } : topic) }))).toThrow()
   expect(() => parseMindMapFile(JSON.stringify({ ...file, connections: [{ ...file.connections[0], targetId: 'missing' }] }))).toThrow('referências')
+  const first = { ...file.connections[0], directed: false, startMarker: false, endMarker: false }; const reverse = { ...first, id: 'reverse', sourceId: first.targetId, targetId: first.sourceId }
+  expect(() => parseMindMapFile(JSON.stringify({ ...file, connections: [first, reverse], integrity: { ...file.integrity, connections: 2 } }))).toThrow('duplicados')
 })
 
 test('importa como mapa novo regenerando todos os ids', async () => {
