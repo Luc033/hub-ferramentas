@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { vi } from 'vitest'
 import { closeDatabase, DB_NAME, FOCUS_PLAYLISTS_STORE, openDatabase } from './indexedDb'
-import { focusPlaylistsRepository, normalizeSoundCloudPlaylistUrl } from './focusPlaylistsRepository'
+import { focusPlaylistsRepository, loadFocusPlaylistCatalog, normalizeSoundCloudPlaylistUrl } from './focusPlaylistsRepository'
 
 beforeEach(async () => {
   closeDatabase(); vi.restoreAllMocks()
@@ -46,4 +46,15 @@ test('trata resposta inválida e autor vazio do oEmbed', async () => {
   await expect(focusPlaylistsRepository.add('https://soundcloud.com/artist/sets/invalid', 'Lo-fi')).rejects.toThrow('resposta inválida')
   const playlist = await focusPlaylistsRepository.add('https://soundcloud.com/artist/sets/fallback', 'Lo-fi')
   expect(playlist.author).toBe('SoundCloud')
+})
+
+test('catálogo expõe somente candidatos aprovados pelo oEmbed sem persistir', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async (request: URL) => {
+    const source = new URL(String(request)).searchParams.get('url') ?? ''
+    if (!source.includes('chillhopdotcom')) return { ok: false, status: 404, json: async () => ({}) }
+    return { ok: true, status: 200, json: async () => ({ title: 'Chillhop real', author_name: 'Chillhop Music', provider_name: 'SoundCloud', html: '<iframe src="https://w.soundcloud.com/player/"></iframe>' }) }
+  }))
+  const catalog = await loadFocusPlaylistCatalog()
+  expect(catalog).toEqual([expect.objectContaining({ title: 'Chillhop real', category: 'Chillhop' })])
+  expect(await focusPlaylistsRepository.getAll()).toEqual([])
 })

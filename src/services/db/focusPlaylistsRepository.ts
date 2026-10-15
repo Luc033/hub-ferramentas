@@ -4,6 +4,12 @@ import { FOCUS_PLAYLISTS_STORE, openDatabase, requestResult, transactionDone, up
 const EVENT = 'focus-playlists:changed'
 const emit = () => window.dispatchEvent(new Event(EVENT))
 
+export const FOCUS_CATALOG_CANDIDATES: ReadonlyArray<{ url: string; category: PlaylistCategory }> = [
+  { url: 'https://soundcloud.com/lofi_girl/sets/lofi-hip-hop-music-beats-to-relax-study-to', category: 'Lo-fi' },
+  { url: 'https://soundcloud.com/chillhopdotcom/sets/chillhop-essentials-spring-2024', category: 'Chillhop' },
+  { url: 'https://soundcloud.com/thejazzhopcafe/sets/jazzhop', category: 'Jazzhop' },
+]
+
 export function normalizeSoundCloudPlaylistUrl(input: string) {
   let url: URL
   try { url = new URL(input.trim()) } catch { throw new Error('Informe uma URL pública válida do SoundCloud.') }
@@ -29,6 +35,16 @@ export async function validateSoundCloudPlaylist(input: string): Promise<Pick<Fo
   if (data.provider_name !== 'SoundCloud' || typeof data.title !== 'string' || !data.title.trim() || typeof data.html !== 'string' || !data.html.includes('w.soundcloud.com/player/')) throw new Error('Esta URL não oferece uma incorporação oficial disponível.')
   const author = typeof data.author_name === 'string' ? data.author_name.trim().slice(0, 120) : ''
   return { url, title: data.title.trim().slice(0, 180), author: author || 'SoundCloud' }
+}
+
+export async function loadFocusPlaylistCatalog(): Promise<FocusPlaylist[]> {
+  const results = await Promise.allSettled(FOCUS_CATALOG_CANDIDATES.map(async (candidate, index) => ({
+    id: `catalog-${index}`,
+    ...await validateSoundCloudPlaylist(candidate.url),
+    category: candidate.category,
+    createdAt: 0,
+  } satisfies FocusPlaylist)))
+  return results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])
 }
 
 export const focusPlaylistsRepository = {

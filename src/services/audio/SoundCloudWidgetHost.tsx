@@ -20,7 +20,7 @@ function loadApi(): Promise<SoundCloudApi> {
   return promise
 }
 
-export function SoundCloudWidgetHost({ url }: { url: string }) {
+export function SoundCloudWidgetHost({ url, attempt }: { url: string; attempt: number }) {
   const iframe = useRef<HTMLIFrameElement>(null)
   const src = useMemo(() => { const params = new URLSearchParams({ url, color: '#6366f1', auto_play: 'true', hide_related: 'false', show_comments: 'false', show_user: 'true', show_reposts: 'false', show_teaser: 'true', visual: 'false' }); return `https://w.soundcloud.com/player/?${params}` }, [url])
   useEffect(() => {
@@ -29,11 +29,11 @@ export function SoundCloudWidgetHost({ url }: { url: string }) {
     void loadApi().then((api) => {
       if (cancelled || !iframe.current) return
       const created = api.Widget(iframe.current); widget = created; const events = api.Widget.Events
-      created.bind(events.READY, () => { window.clearTimeout(timeout); focusSoundService.attachSoundCloud(created, url) })
+      created.bind(events.READY, () => { window.clearTimeout(timeout); focusSoundService.attachSoundCloud(created, url, attempt) })
       created.bind(events.PLAY, () => focusSoundService.soundCloudPlaying(created)); created.bind(events.PAUSE, () => focusSoundService.soundCloudPaused(created))
       created.bind(events.FINISH, () => focusSoundService.soundCloudFinished(created)); if (events.ERROR) created.bind(events.ERROR, () => focusSoundService.soundCloudError(created))
     }).catch(() => { if (!cancelled) focusSoundService.soundCloudError() })
     return () => { cancelled = true; window.clearTimeout(timeout); if (widget) { focusSoundService.detachSoundCloud(widget); widget.unbind() } }
-  }, [src, url])
+  }, [attempt, src, url])
   return <iframe ref={iframe} title="Player oficial do SoundCloud" width="100%" height="166" scrolling="no" frameBorder="0" allow="autoplay" src={src} />
 }

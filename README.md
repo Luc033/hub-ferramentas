@@ -29,10 +29,10 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 - Rastreador de Hábitos, incluindo marcações datadas após backup/migração, navegação semanal e atualização automática na mudança do dia local.
 - Timer com relógio absoluto, persistência, confirmação antes de substituir sessões de outra ferramenta ou sessões em andamento e associação opcional sincronizada com a tarefa.
 - Pomodoro automático com fases 25/5/15 e quantidade de focos por ciclo configuráveis, inclusive com recuperação idempotente de fases vencidas após recarga.
-- Kanban A Fazer/Fazendo/Concluído, com arraste no desktop, controles acessíveis de mover/reordenar e contagem de focos concluídos por tarefa vinculada.
-- Anotações em texto simples com salvamento automático e criação de nós no mapa mental.
+- Kanban A Fazer/Fazendo/Concluído, com destino de ordenação, suporte a toque, controles acessíveis, persistência transacional e contagem de focos por tarefa vinculada.
+- Anotações em texto simples com salvamento automático serializado, flush ao sair, recuperação de falhas e criação de nós no mapa mental.
 - Mapa mental com nós, conexões, arraste, pan, zoom, enquadramento e histórico de desfazer/refazer durante a sessão, persistidos localmente.
-- Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O miniplayer global mantém a reprodução durante a navegação interna.
+- Sons de foco sintetizados no navegador, rádio FluxFM Chillhop e playlists públicas validadas e incorporadas pelo player oficial do SoundCloud. O catálogo só exibe URLs aprovadas pelo oEmbed em tempo de execução, e o miniplayer global mantém a reprodução durante a navegação interna.
 
 Ao abrir o Kanban pela primeira vez, o Hub baixa um backup e pede confirmação antes de elevar `HabitTrackerDB` para a versão nativa 3 e criar a store `tasks`. A migração também cria `habitCheckins` quando ela ainda não existe e nunca converte `days[7]` em datas.
 

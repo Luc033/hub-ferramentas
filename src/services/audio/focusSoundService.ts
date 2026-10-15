@@ -7,7 +7,7 @@ export type FocusSource =
   | { kind: 'radio'; id: 'fluxfm-chillhop'; title: string; provider: 'FluxFM'; url: string }
   | { kind: 'soundcloud'; id: string; title: string; provider: 'SoundCloud'; url: string; author: string }
 
-export interface FocusAudioState { source: FocusSource | null; status: SoundStatus; volume: number; muted: boolean; error: string | null; attempt: number }
+export interface FocusAudioState { source: FocusSource | null; status: SoundStatus; volume: number; muted: boolean; error: string | null; attempt: number; desiredPlaying: boolean; controllerReady: boolean }
 export interface SoundCloudController { play(): void; pause(): void; next(): void; prev(): void; setVolume(volume: number): void }
 
 const ambientTitles: Record<FocusSound, string> = { white: 'Ruído Branco', rain: 'Chuva Sintética', waves: 'Ondas Sintéticas' }
@@ -15,7 +15,7 @@ export const FLUXFM_STREAM = 'https://channels.fluxfm.de/chillhop/externalembedf
 const AMBIENT_FADE_SECONDS = .08
 
 class FocusSoundService {
-  private state: FocusAudioState = { source: null, status: 'stopped', volume: 30, muted: false, error: null, attempt: 0 }
+  private state: FocusAudioState = { source: null, status: 'stopped', volume: 30, muted: false, error: null, attempt: 0, desiredPlaying: false, controllerReady: false }
   private listeners = new Set<() => void>()
   private context: AudioContext | null = null
   private sourceNode: AudioBufferSourceNode | null = null
@@ -53,30 +53,35 @@ class FocusSoundService {
       }
       this.master.connect(this.context.destination); this.sourceNode.start()
       this.master.gain.linearRampToValueAtTime(this.effectiveVolume() / 100, this.context.currentTime + AMBIENT_FADE_SECONDS)
-      this.update({ source: { kind: 'ambient', id: sound, title: ambientTitles[sound], provider: 'Web Audio' }, status: 'playing', error: null })
+      this.update({ source: { kind: 'ambient', id: sound, title: ambientTitles[sound], provider: 'Web Audio' }, status: 'playing', error: null, desiredPlaying: true, controllerReady: false })
     } catch { this.stopCurrent(); this.fail('O navegador bloqueou o áudio. Interaja com a página e tente novamente.') }
   }
 
   async playRadio() {
     this.stopCurrent()
     const audio = this.getRadio(); audio.src = FLUXFM_STREAM; audio.volume = this.effectiveVolume() / 100
-    this.update({ source: { kind: 'radio', id: 'fluxfm-chillhop', title: 'FluxFM Chillhop', provider: 'FluxFM', url: FLUXFM_STREAM }, status: 'loading', error: null })
+    this.update({ source: { kind: 'radio', id: 'fluxfm-chillhop', title: 'FluxFM Chillhop', provider: 'FluxFM', url: FLUXFM_STREAM }, status: 'loading', error: null, desiredPlaying: true, controllerReady: false })
     try { await audio.play() } catch { this.fail('Não foi possível iniciar a FluxFM. Verifique a conexão ou a permissão de reprodução e tente novamente.') }
   }
 
   playSoundCloud(playlist: FocusPlaylist) {
     this.stopCurrent()
-    this.update({ source: { kind: 'soundcloud', id: playlist.id, title: playlist.title, provider: 'SoundCloud', url: playlist.url, author: playlist.author }, status: 'loading', error: null, attempt: this.state.attempt + 1 })
+    this.update({ source: { kind: 'soundcloud', id: playlist.id, title: playlist.title, provider: 'SoundCloud', url: playlist.url, author: playlist.author }, status: 'loading', error: null, attempt: this.state.attempt + 1, desiredPlaying: true, controllerReady: false })
   }
-  attachSoundCloud(controller: SoundCloudController, expectedUrl: string) { if (this.state.source?.kind === 'soundcloud' && this.state.source.url === expectedUrl) { this.soundCloud = controller; controller.setVolume(this.effectiveVolume()); controller.play() } }
-  detachSoundCloud(controller: SoundCloudController) { if (this.soundCloud === controller) this.soundCloud = null }
-  soundCloudPlaying(controller: SoundCloudController) { if (this.isCurrentSoundCloud(controller)) this.update({ status: 'playing', error: null }) }
+  attachSoundCloud(controller: SoundCloudController, expectedUrl: string, expectedAttempt: number) {
+    if (this.state.source?.kind !== 'soundcloud' || this.state.source.url !== expectedUrl || this.state.attempt !== expectedAttempt) return
+    this.soundCloud = controller; controller.setVolume(this.effectiveVolume()); this.update({ controllerReady: true })
+    if (this.state.desiredPlaying) controller.play(); else controller.pause()
+  }
+  detachSoundCloud(controller: SoundCloudController) { if (this.soundCloud === controller) { this.soundCloud = null; if (this.state.source?.kind === 'soundcloud') this.update({ controllerReady: false }) } }
+  soundCloudPlaying(controller: SoundCloudController) { if (this.isCurrentSoundCloud(controller)) { if (!this.state.desiredPlaying) { controller.pause(); return } this.update({ status: 'playing', error: null }) } }
   soundCloudPaused(controller: SoundCloudController) { if (this.isCurrentSoundCloud(controller) && this.state.status !== 'stopped') this.update({ status: 'paused' }) }
   soundCloudFinished(controller: SoundCloudController) { if (this.isCurrentSoundCloud(controller)) this.update({ status: 'paused' }) }
-  soundCloudError(controller?: SoundCloudController) { if (this.state.source?.kind === 'soundcloud' && (!controller || this.isCurrentSoundCloud(controller))) this.fail('A playlist foi removida, não permite incorporação ou está temporariamente indisponível.') }
+  soundCloudError(controller?: SoundCloudController) { if (this.state.source?.kind === 'soundcloud' && (!controller || this.isCurrentSoundCloud(controller))) { this.update({ controllerReady: false }); this.fail('A playlist foi removida, não permite incorporação ou está temporariamente indisponível.') } }
 
   async pause() {
     if (!['playing', 'loading'].includes(this.state.status)) return
+    this.update({ desiredPlaying: false })
     if (this.state.source?.kind === 'ambient') {
       const source = this.sourceNode; this.fadeAmbientToZero()
       await new Promise((resolve) => globalThis.setTimeout(resolve, AMBIENT_FADE_SECONDS * 1_000))
@@ -89,6 +94,7 @@ class FocusSoundService {
   async resume() {
     if (!this.state.source || !['paused', 'error'].includes(this.state.status)) return
     try {
+      this.update({ desiredPlaying: true })
       if (this.state.source.kind === 'ambient') { await this.context?.resume(); this.fadeAmbientToVolume() }
       else if (this.state.source.kind === 'radio') await this.getRadio().play()
       else this.soundCloud?.play()
@@ -99,10 +105,10 @@ class FocusSoundService {
     const current = this.state.source; if (!current) return
     if (current.kind === 'radio') void this.playRadio()
     else if (current.kind === 'ambient') void this.playAmbient(current.id)
-    else { this.soundCloud?.pause(); this.soundCloud = null; this.update({ status: 'loading', error: null, attempt: this.state.attempt + 1 }) }
+    else { this.soundCloud?.pause(); this.soundCloud = null; this.update({ status: 'loading', error: null, attempt: this.state.attempt + 1, desiredPlaying: true, controllerReady: false }) }
   }
-  skip(direction: 'next' | 'previous') { if (this.state.source?.kind === 'soundcloud') direction === 'next' ? this.soundCloud?.next() : this.soundCloud?.prev() }
-  stop() { this.stopCurrent(); this.update({ source: null, status: 'stopped', error: null }) }
+  skip(direction: 'next' | 'previous') { if (this.state.source?.kind === 'soundcloud' && this.state.controllerReady) direction === 'next' ? this.soundCloud?.next() : this.soundCloud?.prev() }
+  stop() { this.stopCurrent(); this.update({ source: null, status: 'stopped', error: null, desiredPlaying: false, controllerReady: false }) }
   setVolume(volume: number) { const safe = Math.min(100, Math.max(0, volume)); if (safe !== this.state.volume) this.update({ volume: safe }); this.applyVolume() }
   setMuted(muted: boolean) { if (muted !== this.state.muted) this.update({ muted }); this.applyVolume() }
 

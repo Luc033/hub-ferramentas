@@ -3,6 +3,21 @@ import { openDatabase, requestResult, TASKS_STORE, transactionDone, upgradeToPro
 
 const CHANGE_EVENT = 'tasks:changed'
 const emitChange = () => window.dispatchEvent(new Event(CHANGE_EVENT))
+const STATUSES: TaskStatus[] = ['todo', 'doing', 'done']
+
+export function normalizedTaskOrder(tasks: Task[]) {
+  return STATUSES.flatMap((status) => tasks.filter((task) => task.status === status).sort((a, b) => a.position - b.position).map((task, position) => ({ ...task, position })))
+}
+
+async function writeTaskOrder(transform: (tasks: Task[]) => Task[]) {
+  const db = await openDatabase()
+  const transaction = db.transaction(TASKS_STORE, 'readwrite')
+  const store = transaction.objectStore(TASKS_STORE)
+  const current = await requestResult(store.getAll()) as Task[]
+  const next = normalizedTaskOrder(transform(current))
+  next.forEach((task) => store.put(task))
+  await transactionDone(transaction); emitChange(); return next
+}
 
 export const tasksRepository = {
   async isEnabled() { return (await openDatabase()).objectStoreNames.contains(TASKS_STORE) },
@@ -32,23 +47,30 @@ export const tasksRepository = {
     await transactionDone(transaction); emitChange()
   },
   async remove(id: string) {
-    const db = await openDatabase()
-    const transaction = db.transaction(TASKS_STORE, 'readwrite')
-    transaction.objectStore(TASKS_STORE).delete(id)
+    const db = await openDatabase(); const transaction = db.transaction(TASKS_STORE, 'readwrite'); const store = transaction.objectStore(TASKS_STORE)
+    const current = await requestResult(store.getAll()) as Task[]
+    store.delete(id); normalizedTaskOrder(current.filter((task) => task.id !== id)).forEach((task) => store.put(task))
     await transactionDone(transaction); emitChange()
   },
   async move(task: Task, status: TaskStatus) {
-    const tasks = await this.getAll()
-    const position = tasks.filter((item) => item.status === status).length
-    await this.update({ ...task, status, position, completedAt: status === 'done' ? task.completedAt ?? Date.now() : undefined })
+    const tasks = await this.getAll(); await this.moveTo(task.id, status, tasks.filter((item) => item.status === status && item.id !== task.id).length)
+  },
+  async moveTo(id: string, status: TaskStatus, targetIndex: number) {
+    await writeTaskOrder((tasks) => {
+      const task = tasks.find((item) => item.id === id); if (!task) throw new Error('A tarefa não existe mais.')
+      const now = Date.now(); const remaining = tasks.filter((item) => item.id !== id)
+      const target = remaining.filter((item) => item.status === status).sort((a, b) => a.position - b.position)
+      const safeIndex = Math.max(0, Math.min(target.length, targetIndex))
+      target.splice(safeIndex, 0, { ...task, status, completedAt: status === 'done' ? task.completedAt ?? now : undefined, updatedAt: now })
+      return [...remaining.filter((item) => item.status !== status), ...target.map((item, position) => ({ ...item, position }))]
+    })
   },
   async reorder(task: Task, direction: -1 | 1) {
     const siblings = (await this.getAll()).filter((item) => item.status === task.status)
     const index = siblings.findIndex((item) => item.id === task.id)
-    const swap = siblings[index + direction]
-    if (!swap) return
-    const oldPosition = task.position
-    await Promise.all([this.update({ ...task, position: swap.position }), this.update({ ...swap, position: oldPosition })])
+    const targetIndex = index + direction
+    if (index < 0 || targetIndex < 0 || targetIndex >= siblings.length) return
+    await this.moveTo(task.id, task.status, targetIndex)
   },
   async recordFocus(id: string, minutes: number) {
     if (!Number.isFinite(minutes) || minutes <= 0) throw new Error('A duração do foco é inválida.')

@@ -14,7 +14,7 @@ test('mantém uma única playlist ativa e encaminha controles oficiais', async (
   const controller: SoundCloudController = { play: vi.fn(), pause: vi.fn(), next: vi.fn(), prev: vi.fn(), setVolume: vi.fn() }
   const first = { id: 'one', url: 'https://soundcloud.com/artist/sets/one', title: 'One', author: 'Artist', category: 'Lo-fi' as const, createdAt: 1 }
   const second = { ...first, id: 'two', url: 'https://soundcloud.com/artist/sets/two', title: 'Two' }
-  focusSoundService.playSoundCloud(first); focusSoundService.attachSoundCloud(controller, first.url); focusSoundService.soundCloudPlaying(controller)
+  focusSoundService.playSoundCloud(first); focusSoundService.attachSoundCloud(controller, first.url, focusSoundService.getSnapshot().attempt); focusSoundService.soundCloudPlaying(controller)
   expect(controller.play).toHaveBeenCalledOnce()
   focusSoundService.skip('next'); expect(controller.next).toHaveBeenCalledOnce()
   await focusSoundService.pause(); expect(controller.pause).toHaveBeenCalledOnce()
@@ -27,9 +27,9 @@ test('ignora eventos atrasados do widget SoundCloud anterior', () => {
   const oldController: SoundCloudController = { play: vi.fn(), pause: vi.fn(), next: vi.fn(), prev: vi.fn(), setVolume: vi.fn() }
   const newController: SoundCloudController = { play: vi.fn(), pause: vi.fn(), next: vi.fn(), prev: vi.fn(), setVolume: vi.fn() }
   const playlist = { id: 'one', url: 'https://soundcloud.com/artist/sets/one', title: 'One', author: 'Artist', category: 'Lo-fi' as const, createdAt: 1 }
-  focusSoundService.playSoundCloud(playlist); focusSoundService.attachSoundCloud(oldController, playlist.url)
+  focusSoundService.playSoundCloud(playlist); focusSoundService.attachSoundCloud(oldController, playlist.url, focusSoundService.getSnapshot().attempt)
   const nextPlaylist = { ...playlist, id: 'two', url: 'https://soundcloud.com/artist/sets/two' }
-  focusSoundService.playSoundCloud(nextPlaylist); focusSoundService.attachSoundCloud(oldController, playlist.url); focusSoundService.attachSoundCloud(newController, nextPlaylist.url)
+  focusSoundService.playSoundCloud(nextPlaylist); const nextAttempt = focusSoundService.getSnapshot().attempt; focusSoundService.attachSoundCloud(oldController, playlist.url, nextAttempt - 1); focusSoundService.attachSoundCloud(newController, nextPlaylist.url, nextAttempt)
   focusSoundService.soundCloudPaused(oldController); focusSoundService.soundCloudError(oldController)
   expect(focusSoundService.getSnapshot()).toMatchObject({ source: { id: 'two' }, status: 'loading', error: null })
   focusSoundService.soundCloudPlaying(newController)
@@ -43,11 +43,34 @@ test('trocar para a rádio encerra o widget anterior e usa HTMLAudioElement', as
   })
   const controller: SoundCloudController = { play: vi.fn(), pause: vi.fn(), next: vi.fn(), prev: vi.fn(), setVolume: vi.fn() }
   focusSoundService.playSoundCloud({ id: 'one', url: 'https://soundcloud.com/artist/sets/one', title: 'One', author: 'Artist', category: 'Lo-fi', createdAt: 1 })
-  focusSoundService.attachSoundCloud(controller, 'https://soundcloud.com/artist/sets/one')
+  focusSoundService.attachSoundCloud(controller, 'https://soundcloud.com/artist/sets/one', focusSoundService.getSnapshot().attempt)
   await focusSoundService.playRadio()
   expect(controller.pause).toHaveBeenCalledOnce()
   expect(radioPlay).toHaveBeenCalledOnce()
   expect(focusSoundService.getSnapshot()).toMatchObject({ source: { kind: 'radio', provider: 'FluxFM' }, status: 'loading' })
+})
+
+test('respeita pausa e stop solicitados antes do READY do SoundCloud', async () => {
+  const controller: SoundCloudController = { play: vi.fn(), pause: vi.fn(), next: vi.fn(), prev: vi.fn(), setVolume: vi.fn() }
+  const playlist = { id: 'one', url: 'https://soundcloud.com/artist/sets/one', title: 'One', author: 'Artist', category: 'Lo-fi' as const, createdAt: 1 }
+  focusSoundService.playSoundCloud(playlist); const pausedAttempt = focusSoundService.getSnapshot().attempt
+  focusSoundService.skip('next'); expect(controller.next).not.toHaveBeenCalled()
+  await focusSoundService.pause(); focusSoundService.attachSoundCloud(controller, playlist.url, pausedAttempt)
+  expect(controller.play).not.toHaveBeenCalled(); expect(controller.pause).toHaveBeenCalledOnce()
+  expect(focusSoundService.getSnapshot()).toMatchObject({ status: 'paused', desiredPlaying: false, controllerReady: true })
+  focusSoundService.stop(); focusSoundService.attachSoundCloud(controller, playlist.url, pausedAttempt)
+  expect(focusSoundService.getSnapshot()).toMatchObject({ source: null, status: 'stopped', controllerReady: false })
+})
+
+test('ignora READY atrasado de uma tentativa anterior da mesma playlist', () => {
+  const oldController: SoundCloudController = { play: vi.fn(), pause: vi.fn(), next: vi.fn(), prev: vi.fn(), setVolume: vi.fn() }
+  const newController: SoundCloudController = { play: vi.fn(), pause: vi.fn(), next: vi.fn(), prev: vi.fn(), setVolume: vi.fn() }
+  const playlist = { id: 'one', url: 'https://soundcloud.com/artist/sets/one', title: 'One', author: 'Artist', category: 'Lo-fi' as const, createdAt: 1 }
+  focusSoundService.playSoundCloud(playlist); const oldAttempt = focusSoundService.getSnapshot().attempt
+  focusSoundService.retry(); const newAttempt = focusSoundService.getSnapshot().attempt
+  focusSoundService.attachSoundCloud(oldController, playlist.url, oldAttempt)
+  focusSoundService.attachSoundCloud(newController, playlist.url, newAttempt)
+  expect(oldController.play).not.toHaveBeenCalled(); expect(newController.play).toHaveBeenCalledOnce()
 })
 
 test('mantém a modulação das ondas antes do ganho mestre para respeitar mute', async () => {
