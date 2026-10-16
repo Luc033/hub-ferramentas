@@ -9,6 +9,7 @@ import { clockService, formatDuration, shouldConfirmClockReplacement } from '../
 import { useClock } from '../../services/clock/useClock'
 import { notificationsService } from '../../services/notifications/notificationsService'
 import { TimerProgressRing } from './TimerProgressRing'
+import timerLogo from '../../assets/logo-timer.webp'
 
 const presets = [1, 5, 15, 30, 60]
 function joinDuration(values: Record<FlipClockUnit, number>) { return (values.hours * 3600 + values.minutes * 60 + values.seconds) * 1000 }
@@ -67,7 +68,7 @@ export default function TimerPage() {
   }
 
   return <PageShell wide>
-    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-400"><Clock3 size={20} />Temporizador</span>} />
+    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-400"><img src={timerLogo} alt="" className="h-6 w-6 object-contain" />Temporizador</span>} />
     <section data-focus-mode={focusMode} className={`timer-page relative overflow-hidden px-4 py-7 sm:px-7 lg:px-10 ${focusMode ? 'min-h-[calc(100vh-10rem)]' : ''}`}>
       <div aria-hidden className={`timer-page-glow timer-page-glow-${statusState} pointer-events-none absolute left-1/2 top-1/3 h-96 w-96 -translate-x-1/2 rounded-full blur-[120px]`} />
       <div className={`relative grid items-center gap-5 ${focusMode ? 'min-h-[calc(100vh-15rem)] place-items-center' : 'xl:grid-cols-[minmax(12rem,1fr)_minmax(27rem,31rem)_minmax(12rem,1fr)]'}`}>

@@ -1,4 +1,5 @@
 import pomodoroNotificationIcon from '../../assets/favicon-pomodoro.png'
+import timerNotificationIcon from '../../assets/favicon-timer.png'
 
 type NotificationPermissionState = NotificationPermission | 'unsupported'
 
@@ -23,7 +24,7 @@ export const notificationsService = {
       const isTimer = mode === 'timer'
       const notification = new Notification(isTimer ? '⏰ Temporizador encerrado!' : 'Fase Pomodoro concluída', {
         body: body ?? (isTimer ? 'Seu temporizador chegou ao fim.' : 'A fase atual do Pomodoro chegou ao fim.'),
-        icon: isTimer ? '/hub-logo.svg?v=1' : pomodoroNotificationIcon,
+        icon: isTimer ? timerNotificationIcon : pomodoroNotificationIcon,
         tag: `hub-${mode}-finished`,
         silent: true,
       })

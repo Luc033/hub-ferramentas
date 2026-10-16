@@ -37,3 +37,10 @@ test('cartão de Foco Pomodoro usa o logotipo de imagem', () => {
   expect(screen.getByRole('heading', { name: 'Foco Pomodoro' })).toBeInTheDocument()
   expect(view.container.querySelector('img[src*="logo-pomodoro"]')).toBeInTheDocument()
 })
+
+test('cartão de Temporizador usa o logotipo de imagem', () => {
+  const tool = toolRegistry.find((item) => item.id === 'timer')!
+  const view = render(<SettingsProvider><MemoryRouter><ToolCard tool={tool} habitSummary={null} tasksSummary={null} notesSummary={null} onRetry={vi.fn()} /></MemoryRouter></SettingsProvider>)
+  expect(screen.getByRole('heading', { name: 'Temporizador' })).toBeInTheDocument()
+  expect(view.container.querySelector('img[src*="logo-timer"]')).toBeInTheDocument()
+})

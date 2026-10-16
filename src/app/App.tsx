@@ -14,6 +14,7 @@ import { useFocusSound } from '../services/audio/useFocusSound'
 import { documentTitleForPath, faviconForPath } from './documentTitle'
 import habitsFavicon from '../assets/favicon-habitos.png'
 import pomodoroFavicon from '../assets/favicon-pomodoro.png'
+import timerFavicon from '../assets/favicon-timer.png'
 
 export function App() {
   const clock = useClock()
@@ -32,12 +33,12 @@ export function App() {
     focusSoundService.setVolume(settings.environmentVolume)
     focusSoundService.setMuted(settings.environmentMuted)
     if (clock.status !== 'alarming') audioService.stopAlarm()
-    if (clock.status === 'running' || clock.status === 'paused') document.title = `(${formatDuration(clock.remainingMs)}) ${clock.mode === 'pomodoro' ? 'Foco' : 'Temporizador'} | Hub`
+    if (clock.status === 'running' || clock.status === 'paused') document.title = `(${formatDuration(clock.remainingMs)}) ${clock.mode === 'pomodoro' ? 'Foco' : 'Timer'} | Hub`
     else if (clock.status === 'alarming') document.title = '⏰ Alarme | Hub'
     else document.title = documentTitleForPath(location.pathname)
     const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-    favicon?.setAttribute('href', faviconForPath(location.pathname, habitsFavicon, pomodoroFavicon))
-    favicon?.setAttribute('type', ['/habits', '/pomodoro'].includes(location.pathname) ? 'image/png' : 'image/svg+xml')
+    favicon?.setAttribute('href', faviconForPath(location.pathname, habitsFavicon, pomodoroFavicon, timerFavicon))
+    favicon?.setAttribute('type', ['/habits', '/pomodoro', '/timer'].includes(location.pathname) ? 'image/png' : 'image/svg+xml')
     if (clock.status === 'alarming') {
       const pomodoroMessage = clock.mode === 'pomodoro' ? pomodoroService.getSnapshot().transitionMessage ?? undefined : undefined
       void completionAlertsService.process(clock, settings.notificationsEnabled, pomodoroMessage).then((result) => {

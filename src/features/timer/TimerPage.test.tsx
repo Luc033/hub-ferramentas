@@ -43,3 +43,8 @@ test('oculta os controles de incremento durante a execução e ativa o progresso
   expect(screen.getByRole('button', { name: 'Aumentar MIN' })).toHaveClass('invisible')
   expect(screen.getByTestId('timer-progress')).toHaveClass('timer-progress-liquid')
 })
+
+test('usa o logotipo do Temporizador no cabeçalho', () => {
+  const view = renderTimer()
+  expect(view.container.querySelector('img[src*="logo-timer"]')).toBeInTheDocument()
+})
