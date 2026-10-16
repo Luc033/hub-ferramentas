@@ -1,9 +1,10 @@
+import pomodoroNotificationIcon from '../../assets/favicon-pomodoro.png'
+
 type NotificationPermissionState = NotificationPermission | 'unsupported'
 
 function supported() {
   return typeof Notification !== 'undefined' && (typeof window === 'undefined' || window.isSecureContext !== false)
 }
-
 export const notificationsService = {
   isSupported: supported,
   permission: (): NotificationPermissionState => supported() ? Notification.permission : 'unsupported',
@@ -22,7 +23,7 @@ export const notificationsService = {
       const isTimer = mode === 'timer'
       const notification = new Notification(isTimer ? '⏰ Temporizador encerrado!' : 'Fase Pomodoro concluída', {
         body: body ?? (isTimer ? 'Seu temporizador chegou ao fim.' : 'A fase atual do Pomodoro chegou ao fim.'),
-        icon: '/hub-logo.svg?v=1',
+        icon: isTimer ? '/hub-logo.svg?v=1' : pomodoroNotificationIcon,
         tag: `hub-${mode}-finished`,
         silent: true,
       })

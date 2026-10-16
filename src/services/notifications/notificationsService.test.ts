@@ -49,6 +49,18 @@ test('cria a notificação do Timer e direciona a aba existente ao clicar', () =
   expect(close).toHaveBeenCalledOnce()
 })
 
+test('usa o favicon do Foco Pomodoro na notificação da fase', () => {
+  let created: { title: string; options?: NotificationOptions } | null = null
+  vi.stubGlobal('Notification', class {
+    static permission = 'granted'
+    static requestPermission = vi.fn()
+    constructor(public title: string, public options?: NotificationOptions) { created = this }
+  })
+  expect(notificationsService.notifyFinished('pomodoro')).toBe(true)
+  expect(created).toMatchObject({ title: 'Fase Pomodoro concluída', options: { tag: 'hub-pomodoro-finished' } })
+  expect((created as unknown as { options: NotificationOptions }).options?.icon).toContain('favicon-pomodoro')
+})
+
 test('uma falha da API de notificações não interrompe a aplicação', () => {
   vi.spyOn(console, 'warn').mockImplementation(() => undefined)
   vi.stubGlobal('Notification', class {

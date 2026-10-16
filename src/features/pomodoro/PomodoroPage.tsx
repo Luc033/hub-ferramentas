@@ -2,6 +2,7 @@ import { Coffee, FastForward, Pause, Play, RotateCcw, Square, Timer } from 'luci
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
 import { Button } from '../../components/ui/Button'
 import { durationToFlipClockValues, FlipClockDisplay } from '../../components/flip-clock/FlipClockDisplay'
+import pomodoroLogo from '../../assets/logo-pomodoro.webp'
 import { audioService } from '../../services/audio/audioService'
 import { clockService, shouldConfirmClockReplacement } from '../../services/clock/ClockService'
 import { useClock } from '../../services/clock/useClock'
@@ -32,7 +33,7 @@ export default function PomodoroPage() {
   }
 
   return <PageShell wide={false}>
-    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-400"><Timer size={17} />Pomodoro</span>} />
+    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-400"><img src={pomodoroLogo} alt="" className="h-6 w-6 object-contain" />Foco Pomodoro</span>} />
     <section className="app-card relative flex min-h-[620px] flex-col items-center justify-center overflow-hidden p-6 text-center md:p-12">
       <div aria-hidden className={`pointer-events-none absolute left-1/2 top-1/2 h-[110%] w-[110%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[110px] ${pomodoro.phase === 'focus' ? 'bg-rose-500/10' : 'bg-emerald-500/10'}`} />
       <div className="z-10 mb-6 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/80 px-4 py-2 font-semibold text-slate-300">{pomodoro.phase === 'focus' ? <Timer size={18} className="text-rose-400" /> : <Coffee size={18} className="text-emerald-400" />}{phaseLabels[pomodoro.phase]}</div>
