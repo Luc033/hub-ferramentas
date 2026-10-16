@@ -1,4 +1,5 @@
 import type { Habit, HabitCheckin, HabitDatabaseInfo } from '../../features/habits/types'
+import { normalizeNote, type Note } from '../../features/notes/types'
 
 export const DB_NAME = 'HabitTrackerDB'
 export const HABITS_STORE = 'habits'
@@ -21,6 +22,12 @@ export const MIND_MAP_ASSETS_STORE = 'mindMapAssets'
 export const MIND_MAP_MEDIA_SCHEMA_VERSION = 7
 export const ALARM_SOUNDS_STORE = 'alarmSounds'
 export const ALARM_SCHEMA_VERSION = 8
+export const NOTE_FOLDERS_STORE = 'noteFolders'
+export const NOTE_TAGS_STORE = 'noteTags'
+export const NOTE_ASSETS_STORE = 'noteAssets'
+export const NOTE_SNAPSHOTS_STORE = 'noteSnapshots'
+export const NOTE_META_STORE = 'noteMeta'
+export const NOTES_PRO_SCHEMA_VERSION = 9
 
 let connection: IDBDatabase | null = null
 let opening: Promise<IDBDatabase> | null = null
@@ -297,6 +304,51 @@ export async function upgradeToAlarmSchema(): Promise<HabitDatabaseInfo> {
     request.onsuccess = () => { configureConnection(request.result); resolve() }
     request.onerror = () => reject(request.error ?? new Error('Não foi possível habilitar áudios personalizados.'))
     request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de importar um áudio.'))
+  })
+  return inspectDatabase()
+}
+
+export async function upgradeToNotesProSchema(): Promise<HabitDatabaseInfo> {
+  let current = await openDatabase()
+  const storesReady = [NOTE_FOLDERS_STORE, NOTE_TAGS_STORE, NOTE_ASSETS_STORE, NOTE_SNAPSHOTS_STORE, NOTE_META_STORE].every((name) => current.objectStoreNames.contains(name))
+  if (storesReady) return inspectDatabase()
+  if (current.version > NOTES_PRO_SCHEMA_VERSION) throw new Error(`A base usa a versão ${current.version}, mais nova que esta aplicação.`)
+  if (!current.objectStoreNames.contains(NOTES_STORE)) {
+    await upgradeToCreativeSchema()
+    current = await openDatabase()
+  }
+  closeDatabase()
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, NOTES_PRO_SCHEMA_VERSION)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      const tx = request.transaction!
+      const notes = tx.objectStore(NOTES_STORE)
+      for (const [name, keyPath] of [[NOTE_FOLDERS_STORE, 'id'], [NOTE_TAGS_STORE, 'id'], [NOTE_ASSETS_STORE, 'id'], [NOTE_SNAPSHOTS_STORE, 'id'], [NOTE_META_STORE, 'id']] as const) {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath })
+      }
+      const folders = tx.objectStore(NOTE_FOLDERS_STORE); if (!folders.indexNames.contains('name')) folders.createIndex('name', 'name', { unique: false })
+      const tags = tx.objectStore(NOTE_TAGS_STORE); if (!tags.indexNames.contains('name')) tags.createIndex('name', 'name', { unique: false })
+      const snapshots = tx.objectStore(NOTE_SNAPSHOTS_STORE); if (!snapshots.indexNames.contains('noteId')) snapshots.createIndex('noteId', 'noteId', { unique: false })
+      if (!notes.indexNames.contains('favorite')) notes.createIndex('favorite', 'favorite', { unique: false })
+      if (!notes.indexNames.contains('folderId')) notes.createIndex('folderId', 'folderId', { unique: false })
+      if (!notes.indexNames.contains('archivedAt')) notes.createIndex('archivedAt', 'archivedAt', { unique: false })
+      if (!notes.indexNames.contains('deletedAt')) notes.createIndex('deletedAt', 'deletedAt', { unique: false })
+      const meta = tx.objectStore(NOTE_META_STORE)
+      const cursor = notes.openCursor()
+      cursor.onsuccess = () => {
+        const value = cursor.result
+        if (!value) return
+        const raw = value.value as Partial<Note> & Pick<Note, 'id'>
+        if (!raw.contentSchemaVersion) meta.put({ id: `legacy-note:${raw.id}`, value: raw, updatedAt: Date.now() })
+        value.update(normalizeNote(raw))
+        value.continue()
+      }
+      meta.put({ id: 'schema', value: { version: NOTES_PRO_SCHEMA_VERSION, migratedAt: Date.now() }, updatedAt: Date.now() })
+    }
+    request.onsuccess = () => { configureConnection(request.result); resolve() }
+    request.onerror = () => reject(request.error ?? new Error('Não foi possível atualizar o Editor de Anotações.'))
+    request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de atualizar Anotações.'))
   })
   return inspectDatabase()
 }

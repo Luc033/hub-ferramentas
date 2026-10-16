@@ -37,6 +37,15 @@
   --flip-card-line: rgb(0 0 0 / .7);
   --flip-card-shadow: 0 7px 14px rgb(0 0 0 / .22), inset 0 1px 0 rgb(148 163 184 / .07);
   --flip-digit-shadow: 0 2px 3px rgb(0 0 0 / .58);
+  --notes-bg: #0b1220;
+  --notes-sidebar: #101827;
+  --notes-surface: #151f30;
+  --notes-editor: #101827;
+  --notes-border: #27354a;
+  --notes-text: #f1f5f9;
+  --notes-muted: #94a3b8;
+  --notes-accent: #a855f7;
+  --notes-accent-soft: rgb(168 85 247 / .14);
 }
 
 :root[data-theme='light'] {
@@ -77,4 +86,13 @@
   --flip-card-line: rgb(0 0 0 / .35);
   --flip-card-shadow: 0 5px 12px rgb(15 23 42 / .12), inset 0 1px 0 rgb(255 255 255 / .05);
   --flip-digit-shadow: 0 1px 2px rgb(0 0 0 / .4);
+  --notes-bg: #f5f7fc;
+  --notes-sidebar: #ffffff;
+  --notes-surface: #ffffff;
+  --notes-editor: #ffffff;
+  --notes-border: #e1e7f0;
+  --notes-text: #172033;
+  --notes-muted: #526178;
+  --notes-accent: #7c3aed;
+  --notes-accent-soft: #f1e8ff;
 }

@@ -1,0 +1,35 @@
+import { Archive, Clock3, FileText, Folder, Menu, Plus, Search, Star, Trash2, X } from 'lucide-react'
+import type { Note, NoteFolder, NoteTag } from './types'
+import { noteExcerpt } from './searchService'
+
+export type NoteFilter = 'all' | 'favorites' | 'recent' | 'archived' | 'trash'
+export type NoteSort = 'updated' | 'created' | 'title-asc' | 'title-desc'
+
+interface Props {
+  notes: Note[]; selectedId: string | null; query: string; filter: NoteFilter; sort: NoteSort; folders: NoteFolder[]; tags: NoteTag[]; folderId: string; tagId: string; open: boolean
+  onOpen: (open: boolean) => void; onSelect: (id: string) => void; onCreate: () => void; onFavorite: (note: Note) => void; onQuery: (query: string) => void; onFilter: (filter: NoteFilter) => void; onSort: (sort: NoteSort) => void; onFolder: (id: string) => void; onTag: (id: string) => void
+}
+
+const filters: Array<{ id: NoteFilter; label: string; icon: typeof FileText }> = [
+  { id: 'all', label: 'Todas as notas', icon: FileText }, { id: 'favorites', label: 'Favoritas', icon: Star }, { id: 'recent', label: 'Recentes', icon: Clock3 }, { id: 'archived', label: 'Arquivadas', icon: Archive }, { id: 'trash', label: 'Lixeira', icon: Trash2 },
+]
+
+function relativeTime(timestamp: number) {
+  const minutes = Math.floor((Date.now() - timestamp) / 60_000)
+  if (minutes < 1) return 'Editado agora'
+  if (minutes < 60) return `há ${minutes} min`
+  if (minutes < 24 * 60) return `há ${Math.floor(minutes / 60)} h`
+  return new Date(timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
+}
+
+export function NotesSidebar(props: Props) {
+  const content = <aside aria-label="Lista de anotações" className="notes-sidebar flex h-full min-h-0 w-full flex-col border-r border-[var(--notes-border)] bg-[var(--notes-sidebar)]">
+    <div className="flex items-center gap-2 p-4"><button className="notes-mobile-only rounded-lg p-2" aria-label="Fechar lista" onClick={() => props.onOpen(false)}><X size={20} /></button><button onClick={props.onCreate} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white hover:bg-violet-500"><Plus size={18} />Nova anotação</button></div>
+    <label className="relative mx-4 mb-3"><span className="sr-only">Buscar notas</span><Search className="pointer-events-none absolute left-3 top-3 text-[var(--notes-muted)]" size={18} /><input value={props.query} onChange={(event) => props.onQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') props.onQuery('') }} placeholder="Buscar notas" className="min-h-11 w-full rounded-xl border border-[var(--notes-border)] bg-[var(--notes-surface)] pl-10 pr-3 text-sm text-[var(--notes-text)]" /></label>
+    <nav aria-label="Filtros de anotações" className="px-3">{filters.map(({ id, label, icon: Icon }) => <button key={id} aria-current={props.filter === id ? 'page' : undefined} onClick={() => props.onFilter(id)} className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition ${props.filter === id ? 'bg-[var(--notes-accent-soft)] font-semibold text-[var(--notes-accent)]' : 'text-[var(--notes-muted)] hover:bg-[var(--notes-surface)]'}`}><Icon size={17} />{label}</button>)}</nav>
+    <div className="grid grid-cols-2 gap-2 px-4 py-3"><select aria-label="Filtrar por pasta" value={props.folderId} onChange={(event) => props.onFolder(event.target.value)} className="min-h-10 rounded-lg border border-[var(--notes-border)] bg-[var(--notes-surface)] px-2 text-xs"><option value="">Todas as pastas</option><option value="none">Sem pasta</option>{props.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select><select aria-label="Filtrar por etiqueta" value={props.tagId} onChange={(event) => props.onTag(event.target.value)} className="min-h-10 rounded-lg border border-[var(--notes-border)] bg-[var(--notes-surface)] px-2 text-xs"><option value="">Todas etiquetas</option>{props.tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}</select></div>
+    <div className="flex items-center justify-between border-y border-[var(--notes-border)] px-4 py-2"><span className="text-[11px] font-bold uppercase tracking-wider text-[var(--notes-muted)]">Notas · {props.notes.length}</span><select aria-label="Ordenar notas" value={props.sort} onChange={(event) => props.onSort(event.target.value as NoteSort)} className="rounded border-0 bg-transparent text-xs text-[var(--notes-muted)]"><option value="updated">Última edição</option><option value="created">Criação</option><option value="title-asc">Título A–Z</option><option value="title-desc">Título Z–A</option></select></div>
+    <div className="min-h-0 flex-1 overflow-y-auto p-3" role="listbox" aria-label="Anotações encontradas">{props.notes.map((note) => <div key={note.id} className="relative mb-2"><button role="option" aria-selected={props.selectedId === note.id} onClick={() => { props.onSelect(note.id); props.onOpen(false) }} className={`w-full rounded-xl border p-3 pr-11 text-left transition ${props.selectedId === note.id ? 'border-violet-500 bg-[var(--notes-accent-soft)]' : 'border-transparent hover:border-[var(--notes-border)] hover:bg-[var(--notes-surface)]'}`}><span className="flex items-center gap-2"><strong className="min-w-0 flex-1 truncate text-sm text-[var(--notes-text)]">{note.title.trim() || 'Sem título'}</strong></span><span className="mt-1 block truncate text-xs text-[var(--notes-muted)]">{noteExcerpt(note, props.query)}</span><span className="mt-2 flex items-center gap-1 text-[11px] text-[var(--notes-muted)]"><Folder size={11} />{relativeTime(note.updatedAt)}</span></button>{!note.deletedAt && <button aria-label={note.favorite ? `Remover ${note.title || 'Sem título'} dos favoritos` : `Adicionar ${note.title || 'Sem título'} aos favoritos`} aria-pressed={note.favorite} className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-lg text-[var(--notes-muted)] hover:bg-[var(--notes-accent-soft)]" onClick={() => props.onFavorite(note)}><Star size={15} className={note.favorite ? 'fill-amber-400 text-amber-400' : ''} /></button>}</div>)}{!props.notes.length && <div className="px-4 py-10 text-center text-sm text-[var(--notes-muted)]"><FileText className="mx-auto mb-3 opacity-60" /><p>{props.query ? 'Nenhuma anotação encontrada' : props.filter === 'trash' ? 'A lixeira está vazia' : 'Suas ideias começam aqui'}</p>{props.query && <button onClick={() => props.onQuery('')} className="mt-3 font-semibold text-violet-400 underline">Limpar busca</button>}</div>}</div>
+  </aside>
+  return <><button onClick={() => props.onOpen(true)} className="notes-sidebar-trigger fixed bottom-5 left-5 z-30 grid h-12 w-12 place-items-center rounded-full bg-violet-600 text-white shadow-xl" aria-label="Abrir lista de anotações"><Menu /></button><div className={`notes-sidebar-shell ${props.open ? 'notes-sidebar-open' : ''}`}>{content}</div>{props.open && <button aria-label="Fechar lista de anotações" className="notes-sidebar-backdrop" onClick={() => props.onOpen(false)} />}</>
+}

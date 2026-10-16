@@ -1,8 +1,9 @@
 import type { Habit, HabitCheckin } from '../../features/habits/types'
-import { ALARM_SOUNDS_STORE, BOARDS_STORE, CHECKINS_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, HABITS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, NODES_STORE, NOTES_STORE, openDatabase, requestResult, transactionDone, upgradeToAlarmSchema } from '../db/indexedDb'
+import { ALARM_SOUNDS_STORE, BOARDS_STORE, CHECKINS_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, HABITS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, NODES_STORE, NOTE_ASSETS_STORE, NOTE_FOLDERS_STORE, NOTE_META_STORE, NOTE_SNAPSHOTS_STORE, NOTE_TAGS_STORE, NOTES_STORE, openDatabase, requestResult, transactionDone, upgradeToAlarmSchema, upgradeToNotesProSchema } from '../db/indexedDb'
 import { TASKS_STORE } from '../db/indexedDb'
 import type { Task } from '../../features/tasks/types'
-import type { Board, MindEdge, MindNode, Note } from '../../features/notes/types'
+import type { Board, MindEdge, MindNode, Note, NoteAsset, NoteFolder, NoteMeta, NoteSnapshot, NoteTag } from '../../features/notes/types'
+import { blocksAreSafe } from '../../features/notes/noteSecurity'
 import type { FocusPlaylist } from '../../features/focus-sounds/types'
 import type { MindMap, MindMapAsset, MindMapConnection, MindMapTopic } from '../../features/mind-maps/types'
 import { validateMindMapDocument } from '../../features/mind-maps/tree'
@@ -44,7 +45,11 @@ const isMindMapStyle = (value: unknown) => {
   const style = value as MindMapTopic['style']
   return ['background', 'color', 'borderColor'].every((key) => (style as Record<string, unknown>)[key] === undefined || typeof (style as Record<string, unknown>)[key] === 'string') && (style?.borderWidth === undefined || isFiniteNumber(style.borderWidth) && style.borderWidth >= 0 && style.borderWidth <= 8) && (style?.borderRadius === undefined || isFiniteNumber(style.borderRadius) && style.borderRadius >= 0 && style.borderRadius <= 40) && (style?.textAlign === undefined || ['left', 'center', 'right'].includes(style.textAlign)) && (style?.fontScale === undefined || isFiniteNumber(style.fontScale) && style.fontScale >= .7 && style.fontScale <= 2) && (style?.bold === undefined || typeof style.bold === 'boolean') && (style?.italic === undefined || typeof style.italic === 'boolean')
 }
-const isNote = (value: unknown): value is Note => Boolean(value && typeof value === 'object' && typeof (value as Note).id === 'string' && typeof (value as Note).title === 'string' && typeof (value as Note).content === 'string' && isFiniteNumber((value as Note).createdAt) && isFiniteNumber((value as Note).updatedAt))
+const isNote = (value: unknown): value is Note => Boolean(value && typeof value === 'object' && typeof (value as Note).id === 'string' && typeof (value as Note).title === 'string' && typeof (value as Note).content === 'string' && isFiniteNumber((value as Note).createdAt) && isFiniteNumber((value as Note).updatedAt) && ((value as Note).blocks === undefined || Array.isArray((value as Note).blocks) && blocksAreSafe((value as Note).blocks)))
+const isNoteFolder = (value: unknown): value is NoteFolder => Boolean(value && typeof value === 'object' && typeof (value as NoteFolder).id === 'string' && typeof (value as NoteFolder).name === 'string' && isFiniteNumber((value as NoteFolder).order) && isFiniteNumber((value as NoteFolder).createdAt) && isFiniteNumber((value as NoteFolder).updatedAt))
+const isNoteTag = (value: unknown): value is NoteTag => Boolean(value && typeof value === 'object' && typeof (value as NoteTag).id === 'string' && typeof (value as NoteTag).name === 'string' && typeof (value as NoteTag).color === 'string' && isFiniteNumber((value as NoteTag).createdAt))
+const isNoteSnapshot = (value: unknown): value is NoteSnapshot => Boolean(value && typeof value === 'object' && typeof (value as NoteSnapshot).id === 'string' && typeof (value as NoteSnapshot).noteId === 'string' && typeof (value as NoteSnapshot).title === 'string' && typeof (value as NoteSnapshot).content === 'string' && Array.isArray((value as NoteSnapshot).blocks) && blocksAreSafe((value as NoteSnapshot).blocks) && isFiniteNumber((value as NoteSnapshot).createdAt) && typeof (value as NoteSnapshot).reason === 'string')
+const isNoteMeta = (value: unknown): value is NoteMeta => Boolean(value && typeof value === 'object' && typeof (value as NoteMeta).id === 'string' && isFiniteNumber((value as NoteMeta).updatedAt))
 const isBoard = (value: unknown): value is Board => Boolean(value && typeof value === 'object' && typeof (value as Board).id === 'string' && typeof (value as Board).name === 'string' && isFiniteNumber((value as Board).panX) && isFiniteNumber((value as Board).panY) && isFiniteNumber((value as Board).zoom) && (value as Board).zoom >= .25 && (value as Board).zoom <= 3 && isFiniteNumber((value as Board).updatedAt))
 const isNode = (value: unknown): value is MindNode => Boolean(value && typeof value === 'object' && typeof (value as MindNode).id === 'string' && typeof (value as MindNode).boardId === 'string' && typeof (value as MindNode).text === 'string' && isFiniteNumber((value as MindNode).x) && isFiniteNumber((value as MindNode).y) && isFiniteNumber((value as MindNode).createdAt) && isFiniteNumber((value as MindNode).updatedAt))
 const isEdge = (value: unknown): value is MindEdge => Boolean(value && typeof value === 'object' && typeof (value as MindEdge).id === 'string' && typeof (value as MindEdge).boardId === 'string' && typeof (value as MindEdge).sourceId === 'string' && typeof (value as MindEdge).targetId === 'string')
@@ -65,6 +70,8 @@ const isMindMapTopic = (value: unknown): value is MindMapTopic => {
 const isMindMapConnection = (value: unknown): value is MindMapConnection => Boolean(value && typeof value === 'object' && typeof (value as MindMapConnection).id === 'string' && typeof (value as MindMapConnection).mapId === 'string' && typeof (value as MindMapConnection).sourceId === 'string' && typeof (value as MindMapConnection).targetId === 'string' && (value as MindMapConnection).sourceId !== (value as MindMapConnection).targetId && typeof (value as MindMapConnection).label === 'string' && typeof (value as MindMapConnection).color === 'string' && isFiniteNumber((value as MindMapConnection).width) && typeof (value as MindMapConnection).dashed === 'boolean' && typeof (value as MindMapConnection).directed === 'boolean' && ((value as MindMapConnection).shape === undefined || ['curve', 'straight'].includes(String((value as MindMapConnection).shape))) && ((value as MindMapConnection).startMarker === undefined || typeof (value as MindMapConnection).startMarker === 'boolean') && ((value as MindMapConnection).endMarker === undefined || typeof (value as MindMapConnection).endMarker === 'boolean') && ((value as MindMapConnection).curveOffset === undefined || isFiniteNumber((value as MindMapConnection).curveOffset) && Math.abs((value as MindMapConnection).curveOffset!) <= 240))
 type BackupAsset = Omit<MindMapAsset, 'blob'> & { dataUrl: string }
 const isMindMapAsset = (value: unknown): value is BackupAsset => Boolean(value && typeof value === 'object' && typeof (value as BackupAsset).id === 'string' && typeof (value as BackupAsset).mapId === 'string' && typeof (value as BackupAsset).name === 'string' && ['image/png', 'image/jpeg', 'image/webp'].includes((value as BackupAsset).mimeType) && isFiniteNumber((value as BackupAsset).size) && (value as BackupAsset).size <= 5 * 1024 * 1024 && typeof (value as BackupAsset).dataUrl === 'string' && (value as BackupAsset).dataUrl.startsWith(`data:${(value as BackupAsset).mimeType};base64,`))
+type BackupNoteAsset = Omit<NoteAsset, 'blob'> & { dataUrl: string }
+const isNoteAsset = (value: unknown): value is BackupNoteAsset => Boolean(value && typeof value === 'object' && typeof (value as BackupNoteAsset).id === 'string' && typeof (value as BackupNoteAsset).name === 'string' && typeof (value as BackupNoteAsset).alt === 'string' && ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes((value as BackupNoteAsset).mimeType) && isFiniteNumber((value as BackupNoteAsset).bytes) && (value as BackupNoteAsset).bytes >= 0 && (value as BackupNoteAsset).bytes <= 10 * 1024 * 1024 && isFiniteNumber((value as BackupNoteAsset).createdAt) && typeof (value as BackupNoteAsset).dataUrl === 'string' && (value as BackupNoteAsset).dataUrl.startsWith(`data:${(value as BackupNoteAsset).mimeType};base64,`))
 type BackupCustomAlarm = Omit<CustomAlarmSound, 'data'> & { dataUrl: string }
 const isCustomAlarm = (value: unknown): value is BackupCustomAlarm => Boolean(value && typeof value === 'object' && (value as BackupCustomAlarm).id === 'custom' && typeof (value as BackupCustomAlarm).name === 'string' && typeof (value as BackupCustomAlarm).mimeType === 'string' && ((value as BackupCustomAlarm).mimeType.startsWith('audio/') || (value as BackupCustomAlarm).mimeType === 'application/octet-stream') && isFiniteNumber((value as BackupCustomAlarm).size) && (value as BackupCustomAlarm).size > 0 && (value as BackupCustomAlarm).size <= 10 * 1024 * 1024 && isFiniteNumber((value as BackupCustomAlarm).updatedAt) && typeof (value as BackupCustomAlarm).dataUrl === 'string' && (value as BackupCustomAlarm).dataUrl.startsWith(`data:${(value as BackupCustomAlarm).mimeType};base64,`))
 const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob) })
@@ -86,6 +93,11 @@ export function parseBackup(text: string): HubBackup {
   if (backup.records.habitCheckins && (!Array.isArray(backup.records.habitCheckins) || !backup.records.habitCheckins.every(isCheckin))) throw new Error('As marcações datadas do backup são inválidas.')
   if (backup.records.tasks && (!Array.isArray(backup.records.tasks) || !backup.records.tasks.every(isTask))) throw new Error('As tarefas do backup são inválidas.')
   if (backup.records.notes && (!Array.isArray(backup.records.notes) || !backup.records.notes.every(isNote))) throw new Error('As notas do backup são inválidas.')
+  if (backup.records.noteFolders && (!Array.isArray(backup.records.noteFolders) || !backup.records.noteFolders.every(isNoteFolder))) throw new Error('As pastas de anotações do backup são inválidas.')
+  if (backup.records.noteTags && (!Array.isArray(backup.records.noteTags) || !backup.records.noteTags.every(isNoteTag))) throw new Error('As etiquetas de anotações do backup são inválidas.')
+  if (backup.records.noteSnapshots && (!Array.isArray(backup.records.noteSnapshots) || !backup.records.noteSnapshots.every(isNoteSnapshot))) throw new Error('As versões de anotações do backup são inválidas.')
+  if (backup.records.noteMeta && (!Array.isArray(backup.records.noteMeta) || !backup.records.noteMeta.every(isNoteMeta))) throw new Error('As preferências de anotações do backup são inválidas.')
+  if (backup.records.noteAssets && (!Array.isArray(backup.records.noteAssets) || !backup.records.noteAssets.every(isNoteAsset))) throw new Error('As imagens de anotações do backup são inválidas.')
   if (backup.records.boards && (!Array.isArray(backup.records.boards) || !backup.records.boards.every(isBoard))) throw new Error('Os quadros do backup são inválidos.')
   if (backup.records.nodes && (!Array.isArray(backup.records.nodes) || !backup.records.nodes.every(isNode))) throw new Error('Os nós do backup são inválidos.')
   if (backup.records.edges && (!Array.isArray(backup.records.edges) || !backup.records.edges.every(isEdge))) throw new Error('As conexões do backup são inválidas.')
@@ -124,6 +136,7 @@ export async function createBackup(): Promise<HubBackup> {
   for (const storeName of stores) records[storeName] = await requestResult(transaction.objectStore(storeName).getAll()) as unknown[]
   await transactionDone(transaction)
   if (records[MIND_MAP_ASSETS_STORE]) records[MIND_MAP_ASSETS_STORE] = await Promise.all((records[MIND_MAP_ASSETS_STORE] as MindMapAsset[]).map(async ({ blob, ...asset }) => ({ ...asset, dataUrl: await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob) }) })))
+  if (records[NOTE_ASSETS_STORE]) records[NOTE_ASSETS_STORE] = await Promise.all((records[NOTE_ASSETS_STORE] as NoteAsset[]).map(async ({ blob, ...asset }) => ({ ...asset, dataUrl: await blobToDataUrl(blob) })))
   if (records[ALARM_SOUNDS_STORE]) records[ALARM_SOUNDS_STORE] = await Promise.all((records[ALARM_SOUNDS_STORE] as CustomAlarmSound[]).map(async ({ data, ...alarm }) => ({ ...alarm, dataUrl: await blobToDataUrl(new Blob([data], { type: alarm.mimeType })) })))
   return { schemaVersion: db.version, exportedAt: new Date().toISOString(), appVersion: '1.0.0', records, preferences: { settings: readStoredSettings() } }
 }
@@ -143,6 +156,7 @@ export async function downloadBackup() {
 export async function importBackup(backup: HubBackup, mode: ImportMode): Promise<ImportReport> {
   let db = await openDatabase()
   if (backup.records.alarmSounds?.length && !db.objectStoreNames.contains(ALARM_SOUNDS_STORE)) { await upgradeToAlarmSchema(); db = await openDatabase() }
+  if ([backup.records.noteFolders, backup.records.noteTags, backup.records.noteAssets, backup.records.noteSnapshots, backup.records.noteMeta].some((records) => records?.length) && !db.objectStoreNames.contains(NOTE_ASSETS_STORE)) { await upgradeToNotesProSchema(); db = await openDatabase() }
   if (backup.records.habitCheckins?.length && !db.objectStoreNames.contains(CHECKINS_STORE)) throw new Error('Habilite marcações por data antes de importar este backup.')
   if (backup.records.tasks?.length && !db.objectStoreNames.contains(TASKS_STORE)) throw new Error('Habilite o Kanban antes de importar tarefas.')
   if ([backup.records.notes, backup.records.boards, backup.records.nodes, backup.records.edges].some((records) => records?.length) && ![NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite Anotações antes de importar dados criativos.')
@@ -150,14 +164,20 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
   if ([backup.records.mindMaps, backup.records.mindMapTopics].some((records) => records?.length) && ![MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite Mapas Mentais antes de importar esses dados.')
   if ([backup.records.mindMapConnections, backup.records.mindMapAssets].some((records) => records?.length) && ![MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite os recursos visuais dos mapas antes de importar conexões ou imagens.')
   const restoredAssets = await Promise.all(((backup.records.mindMapAssets ?? []) as BackupAsset[]).map(async ({ dataUrl, ...asset }) => ({ ...asset, blob: await (await fetch(dataUrl)).blob() })))
+  const restoredNoteAssets = await Promise.all(((backup.records.noteAssets ?? []) as BackupNoteAsset[]).map(async ({ dataUrl, ...asset }) => ({ ...asset, blob: await (await fetch(dataUrl)).blob() })))
   const restoredAlarms = await Promise.all(((backup.records.alarmSounds ?? []) as BackupCustomAlarm[]).map(async ({ dataUrl, ...alarm }) => ({ ...alarm, data: await (await fetch(dataUrl)).arrayBuffer() })))
-  const optionalStores = [CHECKINS_STORE, TASKS_STORE, NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, ALARM_SOUNDS_STORE].filter((name) => db.objectStoreNames.contains(name))
+  const optionalStores = [CHECKINS_STORE, TASKS_STORE, NOTES_STORE, NOTE_FOLDERS_STORE, NOTE_TAGS_STORE, NOTE_ASSETS_STORE, NOTE_SNAPSHOTS_STORE, NOTE_META_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, ALARM_SOUNDS_STORE].filter((name) => db.objectStoreNames.contains(name))
   const stores = [HABITS_STORE, ...optionalStores]
   const transaction = db.transaction(stores, 'readwrite')
   const habitsStore = transaction.objectStore(HABITS_STORE)
   const checkinsStore = stores.includes(CHECKINS_STORE) ? transaction.objectStore(CHECKINS_STORE) : null
   const tasksStore = stores.includes(TASKS_STORE) ? transaction.objectStore(TASKS_STORE) : null
   const notesStore = stores.includes(NOTES_STORE) ? transaction.objectStore(NOTES_STORE) : null
+  const noteFoldersStore = stores.includes(NOTE_FOLDERS_STORE) ? transaction.objectStore(NOTE_FOLDERS_STORE) : null
+  const noteTagsStore = stores.includes(NOTE_TAGS_STORE) ? transaction.objectStore(NOTE_TAGS_STORE) : null
+  const noteAssetsStore = stores.includes(NOTE_ASSETS_STORE) ? transaction.objectStore(NOTE_ASSETS_STORE) : null
+  const noteSnapshotsStore = stores.includes(NOTE_SNAPSHOTS_STORE) ? transaction.objectStore(NOTE_SNAPSHOTS_STORE) : null
+  const noteMetaStore = stores.includes(NOTE_META_STORE) ? transaction.objectStore(NOTE_META_STORE) : null
   const boardsStore = stores.includes(BOARDS_STORE) ? transaction.objectStore(BOARDS_STORE) : null
   const nodesStore = stores.includes(NODES_STORE) ? transaction.objectStore(NODES_STORE) : null
   const edgesStore = stores.includes(EDGES_STORE) ? transaction.objectStore(EDGES_STORE) : null
@@ -174,11 +194,16 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
     habitsStore.clear()
     checkinsStore?.clear()
     tasksStore?.clear()
-    notesStore?.clear(); boardsStore?.clear(); nodesStore?.clear(); edgesStore?.clear(); focusPlaylistsStore?.clear(); mindMapsStore?.clear(); mindMapTopicsStore?.clear(); mindMapConnectionsStore?.clear(); mindMapAssetsStore?.clear(); alarmSoundsStore?.clear()
+    notesStore?.clear(); noteFoldersStore?.clear(); noteTagsStore?.clear(); noteAssetsStore?.clear(); noteSnapshotsStore?.clear(); noteMetaStore?.clear(); boardsStore?.clear(); nodesStore?.clear(); edgesStore?.clear(); focusPlaylistsStore?.clear(); mindMapsStore?.clear(); mindMapTopicsStore?.clear(); mindMapConnectionsStore?.clear(); mindMapAssetsStore?.clear(); alarmSoundsStore?.clear()
     backup.records.habits.forEach((record) => { habitsStore.put(record); imported++ })
     backup.records.habitCheckins?.forEach((record) => { checkinsStore?.put(record); imported++ })
     backup.records.tasks?.forEach((record) => { tasksStore?.put(record); imported++ })
     backup.records.notes?.forEach((record) => { notesStore?.put(record); imported++ })
+    backup.records.noteFolders?.forEach((record) => { noteFoldersStore?.put(record); imported++ })
+    backup.records.noteTags?.forEach((record) => { noteTagsStore?.put(record); imported++ })
+    restoredNoteAssets.forEach((record) => { noteAssetsStore?.put(record); imported++ })
+    backup.records.noteSnapshots?.forEach((record) => { noteSnapshotsStore?.put(record); imported++ })
+    backup.records.noteMeta?.forEach((record) => { noteMetaStore?.put(record); imported++ })
     backup.records.boards?.forEach((record) => { boardsStore?.put(record); imported++ })
     backup.records.nodes?.forEach((record) => { nodesStore?.put(record); imported++ })
     backup.records.edges?.forEach((record) => { edgesStore?.put(record); imported++ })
@@ -204,7 +229,7 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
       if (existing) ignored++
       else { tasksStore!.add(record); imported++ }
     }
-    for (const [records, store] of [[backup.records.notes, notesStore], [backup.records.boards, boardsStore], [backup.records.nodes, nodesStore], [backup.records.edges, edgesStore], [backup.records.focusPlaylists, focusPlaylistsStore]] as const) {
+    for (const [records, store] of [[backup.records.notes, notesStore], [backup.records.noteFolders, noteFoldersStore], [backup.records.noteTags, noteTagsStore], [backup.records.noteSnapshots, noteSnapshotsStore], [backup.records.noteMeta, noteMetaStore], [restoredNoteAssets, noteAssetsStore], [backup.records.boards, boardsStore], [backup.records.nodes, nodesStore], [backup.records.edges, edgesStore], [backup.records.focusPlaylists, focusPlaylistsStore]] as const) {
       for (const record of records ?? []) {
         const id = (record as { id: string }).id
         const existing = store ? await requestResult(store.get(id)) : true

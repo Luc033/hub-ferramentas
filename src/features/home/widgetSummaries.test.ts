@@ -1,4 +1,5 @@
 import { countTasksCompletedToday, describeLastNoteUpdate } from './widgetSummaries'
+import { normalizeNote } from '../notes/types'
 
 test('conta somente tarefas concluídas na data local informada', () => {
   const today = new Date(2026, 9, 14, 10, 0).getTime()
@@ -14,7 +15,7 @@ test('conta somente tarefas concluídas na data local informada', () => {
 
 test('resume atualização da nota sem expor título ou conteúdo', () => {
   const updatedAt = new Date(2026, 9, 14, 9, 30).getTime()
-  const summary = describeLastNoteUpdate([{ id: 'n', title: 'Segredo', content: 'Conteúdo privado', createdAt: updatedAt, updatedAt }], '2026-10-14')
+  const summary = describeLastNoteUpdate([normalizeNote({ id: 'n', title: 'Segredo', content: 'Conteúdo privado', createdAt: updatedAt, updatedAt })], '2026-10-14')
   expect(summary).toContain('Atualizada hoje')
   expect(summary).not.toContain('Segredo')
   expect(summary).not.toContain('Conteúdo privado')

@@ -4,6 +4,7 @@ import { vi } from 'vitest'
 import { mindMapsRepository } from '../../services/db/mindMapsRepository'
 import { notesRepository } from '../../services/db/notesRepository'
 import type { MindMapDocument } from './types'
+import { normalizeNote } from '../notes/types'
 import MindMapEditorPage from './MindMapEditorPage'
 
 const document: MindMapDocument = {
@@ -161,7 +162,7 @@ test('exclui um tópico preservando e promovendo seus filhos', async () => {
 })
 
 test('cria anotação textual a partir do tópico selecionado sem alterar o mapa', async () => {
-  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined); vi.spyOn(notesRepository, 'isEnabled').mockResolvedValue(true); const createNote = vi.spyOn(notesRepository, 'createNote').mockResolvedValue({ id: 'note', title: 'Plano', content: '', createdAt: 1, updatedAt: 1 })
+  vi.spyOn(mindMapsRepository, 'get').mockResolvedValue(documentWithChildren); vi.spyOn(mindMapsRepository, 'saveViewport').mockResolvedValue(undefined); vi.spyOn(notesRepository, 'isEnabled').mockResolvedValue(true); const createNote = vi.spyOn(notesRepository, 'createNote').mockResolvedValue(normalizeNote({ id: 'note', title: 'Plano', content: '', createdAt: 1, updatedAt: 1 }))
   render(<MemoryRouter initialEntries={['/notes/maps/map']}><Routes><Route path="/notes/maps/:mapId" element={<MindMapEditorPage />} /></Routes></MemoryRouter>)
   fireEvent.click(await screen.findByRole('button', { name: 'Criar nota' })); await waitFor(() => expect(createNote).toHaveBeenCalledWith('Plano', expect.stringContaining('- Primeiro'))); expect(screen.getByText('Anotação criada sem alterar o mapa.')).toBeInTheDocument()
 })

@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach } from 'vitest'
-import { ALARM_SCHEMA_VERSION, ALARM_SOUNDS_STORE, AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_SCHEMA_VERSION, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, MIND_MAP_MEDIA_SCHEMA_VERSION, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, requestResult, transactionDone, upgradeToAlarmSchema, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToMindMapMediaSchema, upgradeToMindMapSchema, upgradeToProductivitySchema } from './indexedDb'
+import { ALARM_SCHEMA_VERSION, ALARM_SOUNDS_STORE, AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_SCHEMA_VERSION, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, MIND_MAP_MEDIA_SCHEMA_VERSION, NODES_STORE, NOTE_ASSETS_STORE, NOTE_FOLDERS_STORE, NOTE_META_STORE, NOTE_SNAPSHOTS_STORE, NOTE_TAGS_STORE, NOTES_PRO_SCHEMA_VERSION, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, requestResult, transactionDone, upgradeToAlarmSchema, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToMindMapMediaSchema, upgradeToMindMapSchema, upgradeToNotesProSchema, upgradeToProductivitySchema } from './indexedDb'
 
 async function deleteTestDatabase() {
   closeDatabase()
@@ -96,4 +96,25 @@ test('habilita recursos visuais na v7 sem alterar mapas e nós existentes', asyn
   await upgradeToMindMapMediaSchema(); const upgraded = await openDatabase()
   expect(upgraded.version).toBe(MIND_MAP_MEDIA_SCHEMA_VERSION); expect(upgraded.objectStoreNames.contains(MIND_MAP_CONNECTIONS_STORE)).toBe(true); expect(upgraded.objectStoreNames.contains(MIND_MAP_ASSETS_STORE)).toBe(true)
   expect(await new Promise((resolve, reject) => { const request = upgraded.transaction(MIND_MAPS_STORE).objectStore(MIND_MAPS_STORE).get('map'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })).toMatchObject({ name: 'Seguro' })
+})
+
+test('migra notas legadas para blocos de forma idempotente e mantém cópia de recuperação', async () => {
+  await upgradeToCreativeSchema()
+  const before = await openDatabase(); const tx = before.transaction(NOTES_STORE, 'readwrite')
+  const legacy = { id: 'legacy-note', title: 'Legada', content: 'Primeira linha\nSegunda linha', createdAt: 10, updatedAt: 20 }
+  tx.objectStore(NOTES_STORE).add(legacy); await transactionDone(tx)
+
+  await upgradeToNotesProSchema()
+  const upgraded = await openDatabase()
+  expect(upgraded.version).toBe(NOTES_PRO_SCHEMA_VERSION)
+  for (const store of [NOTE_FOLDERS_STORE, NOTE_TAGS_STORE, NOTE_ASSETS_STORE, NOTE_SNAPSHOTS_STORE, NOTE_META_STORE]) expect(upgraded.objectStoreNames.contains(store)).toBe(true)
+  const migrated = await requestResult(upgraded.transaction(NOTES_STORE).objectStore(NOTES_STORE).get('legacy-note')) as { blocks: unknown[]; createdAt: number; updatedAt: number }
+  expect(migrated).toMatchObject({ createdAt: 10, updatedAt: 20, contentSchemaVersion: 2, migrationSource: 'legacy-text-v1' })
+  expect(migrated.blocks).toHaveLength(2)
+  const recovery = await requestResult(upgraded.transaction(NOTE_META_STORE).objectStore(NOTE_META_STORE).get('legacy-note:legacy-note')) as { value: unknown }
+  expect(recovery.value).toEqual(legacy)
+
+  await upgradeToNotesProSchema()
+  const unchanged = await requestResult((await openDatabase()).transaction(NOTES_STORE).objectStore(NOTES_STORE).get('legacy-note'))
+  expect(unchanged).toEqual(expect.objectContaining({ createdAt: 10, updatedAt: 20, blocks: migrated.blocks }))
 })
