@@ -7,9 +7,9 @@ import { audioService } from '../../services/audio/audioService'
 import { clockService, formatDuration, shouldConfirmClockReplacement } from '../../services/clock/ClockService'
 import { useClock } from '../../services/clock/useClock'
 import { notificationsService } from '../../services/notifications/notificationsService'
+import { TimerProgressRing } from './TimerProgressRing'
 
 const presets = [1, 5, 15, 30, 60]
-const circumference = 2 * Math.PI * 46
 type TimeUnit = 'hours' | 'minutes' | 'seconds'
 
 function splitDuration(milliseconds: number) {
@@ -62,10 +62,8 @@ export default function TimerPage() {
   const units = splitDuration(displayMs)
   const selectedPreset = available && ownsClock && presets.find((preset) => preset * 60_000 === state.durationMs)
   const elapsed = ownsClock ? Math.max(0, state.durationMs - state.remainingMs) : 0
-  const progress = finished ? 1 : state.durationMs > 0 ? Math.min(1, elapsed / state.durationMs) : 0
   const status = finished ? 'Encerrado' : running ? 'Em andamento' : paused ? 'Pausado' : 'Disponível'
   const statusColor = finished ? 'text-red-400' : paused ? 'text-amber-400' : running ? 'text-cyan-300' : 'text-slate-400'
-  const progressColor = finished ? 'text-red-500' : 'text-cyan-400'
   const canRestore = ownsClock && ['running', 'paused', 'alarming'].includes(state.status)
 
   const replaceDuration = (milliseconds: number) => {
@@ -94,14 +92,7 @@ export default function TimerPage() {
         {!focusMode && <div className="order-2 grid gap-4 sm:grid-cols-2 xl:order-1 xl:grid-cols-1"><InfoCard icon={<Target size={38} />} label="Duração total" value={ownsClock && state.durationMs ? formatTotal(state.durationMs) : '—'} /><InfoCard icon={<Clock3 size={38} />} label="Início" value={ownsClock ? formatClockTime(state.startedAt) : '—'} /></div>}
         <div className={`order-1 mx-auto flex w-full flex-col items-center xl:order-2 ${focusMode ? 'max-w-[min(78vh,56rem)]' : 'max-w-[31rem]'}`}>
           <div className={`relative aspect-square w-full ${focusMode ? 'max-w-[min(78vh,56rem)]' : 'max-w-[29rem]'}`}>
-            <svg aria-hidden className={`absolute inset-0 h-full w-full -rotate-90 ${progressColor} ${finished ? 'timer-progress-alarm' : ''}`} viewBox="0 0 100 100">
-              <defs>
-                <linearGradient id="timer-liquid-gradient" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="#67e8f9" /><stop offset=".42" stopColor="#06b6d4" /><stop offset=".72" stopColor="#22d3ee" /><stop offset="1" stopColor="#a5f3fc" /></linearGradient>
-                <filter id="timer-liquid-filter" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".025 .11" numOctaves="1" seed="7" result="noise">{running && !reducedMotion && <animate attributeName="baseFrequency" values=".025 .11;.04 .085;.025 .11" dur="2.8s" repeatCount="indefinite" />}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.1" xChannelSelector="R" yChannelSelector="B" /><feDropShadow dx="0" dy="0" stdDeviation="1.1" floodColor="#22d3ee" floodOpacity=".8" /></filter>
-              </defs>
-              <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeOpacity=".13" strokeWidth="3" />
-              <circle data-testid="timer-progress" cx="50" cy="50" r="46" fill="none" stroke={running ? 'url(#timer-liquid-gradient)' : 'currentColor'} filter={running ? 'url(#timer-liquid-filter)' : undefined} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)} className={`transition-[stroke-dashoffset,stroke] duration-300 ${running ? 'timer-progress-liquid' : ''}`} />
-            </svg>
+            <TimerProgressRing status={ownsClock ? state.status : 'idle'} durationMs={ownsClock ? state.durationMs : 0} remainingMs={displayMs} endAt={ownsClock ? state.endAt : null} reducedMotion={reducedMotion} />
             <div className="absolute inset-[7%] flex flex-col items-center justify-center rounded-full border border-slate-800/80 bg-slate-950/55 px-[7%] shadow-[inset_0_0_60px_rgba(8,145,178,.08)] backdrop-blur-sm">
               <div role="status" className={`flex items-center gap-2 font-semibold ${focusMode ? 'mb-8 text-lg sm:text-xl' : 'mb-5 text-sm sm:text-base'} ${statusColor}`}><span className={`h-2.5 w-2.5 rounded-full bg-current ${running ? 'shadow-[0_0_12px_currentColor]' : ''}`} />{status}</div>
               <div aria-live="polite" aria-label={`Tempo restante: ${formatDuration(displayMs)}`} className="flex w-full items-start justify-center gap-2 sm:gap-3">

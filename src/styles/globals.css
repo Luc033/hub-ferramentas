@@ -29,7 +29,8 @@ button:disabled { cursor: not-allowed; }
 .text-strong { color: var(--text-strong); }
 .timer-digits { font-variant-numeric: tabular-nums; }
 .timer-page { background: var(--bg); }
-.timer-progress-liquid { animation: timer-liquid-shimmer 1.8s ease-in-out infinite; }
+.timer-progress-liquid, .timer-progress-glow-active, .timer-progress-wave { will-change: stroke-dashoffset; }
+.timer-progress-liquid { animation: timer-liquid-shimmer 2.2s ease-in-out infinite; }
 .timer-progress-alarm { animation: timer-alarm-glow 1.15s ease-in-out infinite; }
 @keyframes timer-liquid-shimmer { 0%, 100% { stroke-opacity: .82; } 50% { stroke-opacity: 1; } }
 @keyframes timer-alarm-glow {
