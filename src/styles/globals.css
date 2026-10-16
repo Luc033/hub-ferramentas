@@ -29,6 +29,18 @@ button:disabled { cursor: not-allowed; }
 .text-strong { color: var(--text-strong); }
 .timer-digits { font-variant-numeric: tabular-nums; }
 .timer-page { background: var(--bg); }
+.timer-flip-display { display: grid; width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: clamp(.25rem, 1.5vw, .75rem); }
+.timer-flip-unit { --flip-card-gap: .12rem; display: flex; min-width: 0; flex-direction: column; align-items: center; }
+.timer-flip-unit-regular { --flip-card-width: clamp(1.45rem, 5.6vw, 2.05rem); --flip-card-height: clamp(3.1rem, 11vw, 4.2rem); --flip-digit-size: clamp(1.8rem, 7vw, 2.8rem); }
+.timer-flip-unit-prominent { --flip-card-width: clamp(1.6rem, 8vw, 2.8rem); --flip-card-height: clamp(3.5rem, 13vw, 5.3rem); --flip-digit-size: clamp(2.05rem, 9vw, 3.65rem); }
+.timer-flip-step { display: flex; min-height: 2.15rem; width: 100%; align-items: center; justify-content: center; border: 0; background: transparent; color: #22d3ee; font-size: 1.45rem; font-weight: 600; line-height: 1; transition: color 150ms ease, opacity 150ms ease; }
+.timer-flip-step:hover:not(:disabled) { color: #a5f3fc; }
+.timer-flip-step:disabled { opacity: .3; }
+.timer-flip-edit { position: relative; border: 1px solid rgb(51 65 85 / .9); border-radius: .55rem; background: #07101d; box-shadow: 0 10px 22px rgb(0 0 0 / .24); }
+.timer-flip-edit:focus-within { border-color: #22d3ee; box-shadow: 0 0 0 2px rgb(34 211 238 / .18), 0 10px 22px rgb(0 0 0 / .3); }
+.timer-flip-input { position: absolute; inset: 0; z-index: 40; width: 100%; border: 0; border-radius: inherit; background: transparent; color: transparent !important; caret-color: #67e8f9; opacity: .01; outline: none; }
+.timer-flip-input:disabled { cursor: default; }
+.timer-flip-label { margin-top: .45rem; color: var(--text-muted); font-size: .72rem; font-weight: 600; letter-spacing: .09em; line-height: 1; }
 .timer-progress-liquid, .timer-progress-glow-active, .timer-progress-wave { will-change: stroke-dashoffset; }
 .timer-progress-liquid { animation: timer-liquid-shimmer 2.2s ease-in-out infinite; }
 .timer-progress-alarm { animation: timer-alarm-glow 1.15s ease-in-out infinite; }

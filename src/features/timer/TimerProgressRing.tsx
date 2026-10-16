@@ -2,6 +2,7 @@ import { memo, useEffect, useRef } from 'react'
 import type { ClockStatus } from '../../services/clock/ClockService'
 
 export const TIMER_RING_CIRCUMFERENCE = 2 * Math.PI * 46
+export const TIMER_RING_CLOCKWISE_PATH = 'M 50 4 A 46 46 0 0 1 96 50 A 46 46 0 0 1 50 96 A 46 46 0 0 1 4 50 A 46 46 0 0 1 50 4'
 
 interface TimerProgressRingProps {
   status: ClockStatus
@@ -18,9 +19,9 @@ export function calculateTimerProgress(status: ClockStatus, durationMs: number, 
 }
 
 function TimerProgressRingComponent({ status, durationMs, remainingMs, endAt, reducedMotion }: TimerProgressRingProps) {
-  const progressRef = useRef<SVGCircleElement>(null)
-  const glowRef = useRef<SVGCircleElement>(null)
-  const waveRef = useRef<SVGCircleElement>(null)
+  const progressRef = useRef<SVGPathElement>(null)
+  const glowRef = useRef<SVGPathElement>(null)
+  const waveRef = useRef<SVGPathElement>(null)
   const running = status === 'running'
   const finished = status === 'alarming'
   const initialProgress = calculateTimerProgress(status, durationMs, remainingMs)
@@ -52,7 +53,7 @@ function TimerProgressRingComponent({ status, durationMs, remainingMs, endAt, re
     return () => { if (frame) cancelAnimationFrame(frame) }
   }, [durationMs, endAt, remainingMs, running, status])
 
-  return <svg aria-hidden shapeRendering="geometricPrecision" className={`absolute inset-0 h-full w-full -rotate-90 ${finished ? 'timer-progress-alarm text-red-500' : 'text-cyan-400'}`} viewBox="0 0 100 100">
+  return <svg aria-hidden shapeRendering="geometricPrecision" data-direction="clockwise" className={`absolute inset-0 h-full w-full ${finished ? 'timer-progress-alarm text-red-500' : 'text-cyan-400'}`} viewBox="0 0 100 100">
     <defs>
       <linearGradient id="timer-liquid-gradient" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
         <stop offset="0" stopColor="#a5f3fc" /><stop offset=".28" stopColor="#22d3ee" /><stop offset=".58" stopColor="#0891b2" /><stop offset=".82" stopColor="#67e8f9" /><stop offset="1" stopColor="#06b6d4" />
@@ -60,15 +61,15 @@ function TimerProgressRingComponent({ status, durationMs, remainingMs, endAt, re
       </linearGradient>
       <linearGradient id="timer-wave-gradient" x1="0" y1="50" x2="100" y2="50" gradientUnits="userSpaceOnUse">
         <stop offset="0" stopColor="#ecfeff" stopOpacity=".12" /><stop offset=".35" stopColor="#ecfeff" stopOpacity=".9" /><stop offset=".62" stopColor="#67e8f9" stopOpacity=".28" /><stop offset="1" stopColor="#ecfeff" stopOpacity=".08" />
-        {running && !reducedMotion && <animateTransform attributeName="gradientTransform" type="rotate" from="360 50 50" to="0 50 50" dur="2.7s" repeatCount="indefinite" />}
+        {running && !reducedMotion && <animateTransform attributeName="gradientTransform" type="rotate" from="0 50 50" to="360 50 50" dur="2.7s" repeatCount="indefinite" />}
       </linearGradient>
       <filter id="timer-cyan-glow" x="-30%" y="-30%" width="160%" height="160%" colorInterpolationFilters="sRGB"><feGaussianBlur stdDeviation="1.15" /></filter>
       <filter id="timer-red-glow" x="-30%" y="-30%" width="160%" height="160%" colorInterpolationFilters="sRGB"><feGaussianBlur stdDeviation="1.35" /></filter>
     </defs>
     <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeOpacity=".13" strokeWidth="3" />
-    <circle ref={glowRef} cx="50" cy="50" r="46" fill="none" stroke={finished ? '#ef4444' : '#22d3ee'} strokeOpacity={finished ? '.7' : '.58'} strokeWidth="4.6" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={TIMER_RING_CIRCUMFERENCE} strokeDashoffset={initialOffset} filter={`url(#${finished ? 'timer-red-glow' : 'timer-cyan-glow'})`} className={running ? 'timer-progress-glow-active' : ''} />
-    <circle ref={progressRef} data-testid="timer-progress" cx="50" cy="50" r="46" fill="none" stroke={finished ? '#ef4444' : running ? 'url(#timer-liquid-gradient)' : 'currentColor'} strokeWidth="2.65" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={TIMER_RING_CIRCUMFERENCE} strokeDashoffset={initialOffset} className={running ? 'timer-progress-liquid' : ''} />
-    {running && <circle ref={waveRef} cx="50" cy="50" r="46" fill="none" stroke="url(#timer-wave-gradient)" strokeWidth="1.05" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={TIMER_RING_CIRCUMFERENCE} strokeDashoffset={initialOffset} className="timer-progress-wave" />}
+    <path ref={glowRef} d={TIMER_RING_CLOCKWISE_PATH} fill="none" stroke={finished ? '#ef4444' : '#22d3ee'} strokeOpacity={finished ? '.7' : '.58'} strokeWidth="4.6" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={TIMER_RING_CIRCUMFERENCE} strokeDashoffset={initialOffset} filter={`url(#${finished ? 'timer-red-glow' : 'timer-cyan-glow'})`} className={running ? 'timer-progress-glow-active' : ''} />
+    <path ref={progressRef} data-testid="timer-progress" d={TIMER_RING_CLOCKWISE_PATH} fill="none" stroke={finished ? '#ef4444' : running ? 'url(#timer-liquid-gradient)' : 'currentColor'} strokeWidth="2.65" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={TIMER_RING_CIRCUMFERENCE} strokeDashoffset={initialOffset} className={running ? 'timer-progress-liquid' : ''} />
+    {running && <path ref={waveRef} d={TIMER_RING_CLOCKWISE_PATH} fill="none" stroke="url(#timer-wave-gradient)" strokeWidth="1.05" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={TIMER_RING_CIRCUMFERENCE} strokeDashoffset={initialOffset} className="timer-progress-wave" />}
   </svg>
 }
 

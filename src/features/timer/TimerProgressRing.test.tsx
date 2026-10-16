@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
-import { calculateTimerProgress, TIMER_RING_CIRCUMFERENCE, TimerProgressRing } from './TimerProgressRing'
+import { calculateTimerProgress, TIMER_RING_CIRCUMFERENCE, TIMER_RING_CLOCKWISE_PATH, TimerProgressRing } from './TimerProgressRing'
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
@@ -33,4 +33,12 @@ test('congela em cem por cento quando o temporizador encerra', () => {
   render(<TimerProgressRing status="alarming" durationMs={10_000} remainingMs={0} endAt={null} reducedMotion />)
   expect(screen.getByTestId('timer-progress')).toHaveAttribute('stroke', '#ef4444')
   expect(screen.getByTestId('timer-progress')).toHaveAttribute('stroke-dashoffset', '0')
+})
+
+test('usa um caminho explícito que começa em doze horas e avança no sentido horário', () => {
+  render(<TimerProgressRing status="running" durationMs={10_000} remainingMs={7_500} endAt={Date.now() + 7_500} reducedMotion />)
+  const progress = screen.getByTestId('timer-progress')
+  expect(progress.closest('svg')).toHaveAttribute('data-direction', 'clockwise')
+  expect(progress).toHaveAttribute('d', TIMER_RING_CLOCKWISE_PATH)
+  expect(TIMER_RING_CLOCKWISE_PATH).toMatch(/^M 50 4 A 46 46 0 0 1 96 50/)
 })

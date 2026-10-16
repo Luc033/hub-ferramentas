@@ -1,4 +1,4 @@
-import { Bell, BellOff, ChevronDown, ChevronUp, CircleGauge, Clock3, Flag, Focus, Pause, Play, RotateCcw, Square, Target } from 'lucide-react'
+import { Bell, BellOff, CircleGauge, Clock3, Flag, Focus, Pause, Play, RotateCcw, Square, Target } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useSettings } from '../../app/providers/SettingsProvider'
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
@@ -8,33 +8,20 @@ import { clockService, formatDuration, shouldConfirmClockReplacement } from '../
 import { useClock } from '../../services/clock/useClock'
 import { notificationsService } from '../../services/notifications/notificationsService'
 import { TimerProgressRing } from './TimerProgressRing'
+import { TimerFlipDisplay, type TimerUnit } from './TimerFlipDisplay'
 
 const presets = [1, 5, 15, 30, 60]
-type TimeUnit = 'hours' | 'minutes' | 'seconds'
-
 function splitDuration(milliseconds: number) {
-  const totalSeconds = Math.max(0, Math.round(milliseconds / 1000))
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000))
   return { hours: Math.min(99, Math.floor(totalSeconds / 3600)), minutes: Math.floor((totalSeconds % 3600) / 60), seconds: totalSeconds % 60 }
 }
 
-function joinDuration(values: Record<TimeUnit, number>) { return (values.hours * 3600 + values.minutes * 60 + values.seconds) * 1000 }
+function joinDuration(values: Record<TimerUnit, number>) { return (values.hours * 3600 + values.minutes * 60 + values.seconds) * 1000 }
 function formatClockTime(timestamp: number | null) { return timestamp === null ? '—' : new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 function formatTotal(milliseconds: number) {
   const minutes = milliseconds / 60_000
   if (Number.isInteger(minutes)) return minutes === 1 ? '1 minuto' : minutes === 60 ? '1 hora' : `${minutes} minutos`
   return formatDuration(milliseconds)
-}
-
-function TimeControl({ label, value, max, disabled, prominent = false, onChange }: { label: string; value: number; max: number; disabled: boolean; prominent?: boolean; onChange: (value: number) => void }) {
-  const setValue = (next: number) => onChange(Math.min(max, Math.max(0, next)))
-  return <div className="flex min-w-0 flex-1 flex-col items-center">
-    <div className={`flex w-full flex-col items-center rounded-2xl border border-slate-700/90 bg-slate-950/45 py-1 shadow-inner sm:py-2 ${prominent ? 'max-w-36 md:max-w-44' : 'max-w-24 sm:max-w-28'}`}>
-      <button type="button" aria-label={`Aumentar ${label}`} disabled={disabled || value >= max} onClick={() => setValue(value + 1)} className={`flex min-h-9 w-full items-center justify-center text-cyan-400 transition-[color,opacity] hover:text-cyan-200 disabled:opacity-30 ${disabled ? 'invisible' : ''}`}><ChevronUp size={prominent ? 34 : 25} /></button>
-      <input aria-label={label} inputMode="numeric" maxLength={2} disabled={disabled} value={String(value).padStart(2, '0')} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setValue(Number(event.target.value.replace(/\D/g, '').slice(-2)) || 0)} className={`timer-digits w-full border-0 bg-transparent px-0 text-center font-mono font-bold text-white outline-none ${prominent ? 'text-5xl sm:text-6xl md:text-7xl' : 'text-4xl sm:text-5xl'}`} />
-      <button type="button" aria-label={`Diminuir ${label}`} disabled={disabled || value <= 0} onClick={() => setValue(value - 1)} className={`flex min-h-9 w-full items-center justify-center text-cyan-400 transition-[color,opacity] hover:text-cyan-200 disabled:opacity-30 ${disabled ? 'invisible' : ''}`}><ChevronDown size={prominent ? 34 : 25} /></button>
-    </div>
-    <span className="mt-2 text-xs font-semibold uppercase tracking-wider text-slate-400 sm:text-sm">{label}</span>
-  </div>
 }
 
 function InfoCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
@@ -70,7 +57,7 @@ export default function TimerPage() {
     if (shouldConfirmClockReplacement(state, 'timer') && !window.confirm(`${state.mode === 'pomodoro' ? 'O Pomodoro' : 'O temporizador'} possui uma sessão ${state.status === 'paused' ? 'pausada' : 'ativa'}. Deseja substituí-la?`)) return
     clockService.configureDuration(milliseconds, 'timer')
   }
-  const changeUnit = (unit: TimeUnit, value: number) => replaceDuration(joinDuration({ ...units, [unit]: value }))
+  const changeUnit = (unit: TimerUnit, value: number) => replaceDuration(joinDuration({ ...units, [unit]: value }))
   const startOrToggle = () => {
     if (finished) { clockService.stopAlarm(); return }
     if (running) { clockService.pause(); return }
@@ -95,10 +82,8 @@ export default function TimerPage() {
             <TimerProgressRing status={ownsClock ? state.status : 'idle'} durationMs={ownsClock ? state.durationMs : 0} remainingMs={displayMs} endAt={ownsClock ? state.endAt : null} reducedMotion={reducedMotion} />
             <div className="absolute inset-[7%] flex flex-col items-center justify-center rounded-full border border-slate-800/80 bg-slate-950/55 px-[7%] shadow-[inset_0_0_60px_rgba(8,145,178,.08)] backdrop-blur-sm">
               <div role="status" className={`flex items-center gap-2 font-semibold ${focusMode ? 'mb-8 text-lg sm:text-xl' : 'mb-5 text-sm sm:text-base'} ${statusColor}`}><span className={`h-2.5 w-2.5 rounded-full bg-current ${running ? 'shadow-[0_0_12px_currentColor]' : ''}`} />{status}</div>
-              <div aria-live="polite" aria-label={`Tempo restante: ${formatDuration(displayMs)}`} className="flex w-full items-start justify-center gap-2 sm:gap-3">
-                <TimeControl label="HRS" value={units.hours} max={99} disabled={!available} prominent={focusMode} onChange={(value) => changeUnit('hours', value)} />
-                <TimeControl label="MIN" value={units.minutes} max={59} disabled={!available} prominent={focusMode} onChange={(value) => changeUnit('minutes', value)} />
-                <TimeControl label="SEG" value={units.seconds} max={59} disabled={!available} prominent={focusMode} onChange={(value) => changeUnit('seconds', value)} />
+              <div aria-live="polite" aria-label={`Tempo restante: ${formatDuration(displayMs)}`} className="w-full">
+                <TimerFlipDisplay values={units} disabled={!available} prominent={focusMode} reducedMotion={reducedMotion} transitionKey={`${state.status}-${state.runId ?? 'configured'}`} onChange={changeUnit} />
               </div>
             </div>
           </div>
