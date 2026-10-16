@@ -39,9 +39,16 @@ test('rejeita playlist persistida com categoria desconhecida', () => {
 test('aceita preferências completas e rejeita valores fora dos limites', () => {
   const settings = { theme: 'light', soundEffects: false, alarmVolume: 25, environmentVolume: 40, environmentMuted: true, notificationsEnabled: false, pomodoroAutoStart: false, focusMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 20 }
   const data = { schemaVersion: 5, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [] }, preferences: { settings } }
-  expect(parseBackup(JSON.stringify(data)).preferences?.settings).toEqual({ ...settings, focusesPerCycle: 4 })
+  expect(parseBackup(JSON.stringify(data)).preferences?.settings).toEqual({ ...settings, selectedAlarmSoundId: 'original', focusesPerCycle: 4 })
   expect(() => parseBackup(JSON.stringify({ ...data, preferences: { settings: { ...settings, alarmVolume: 101 } } }))).toThrow('preferências')
   expect(() => parseBackup(JSON.stringify({ ...data, preferences: { settings: { ...settings, focusesPerCycle: 13 } } }))).toThrow('preferências')
+})
+
+test('valida o áudio personalizado transportável sem aceitar payloads arbitrários', () => {
+  const alarm = { id: 'custom', name: 'alerta.wav', mimeType: 'audio/wav', size: 3, updatedAt: 1, dataUrl: 'data:audio/wav;base64,AQID' }
+  const data = { schemaVersion: 8, exportedAt: new Date().toISOString(), appVersion: 'test', records: { habits: [], alarmSounds: [alarm] } }
+  expect(parseBackup(JSON.stringify(data)).records.alarmSounds).toEqual([alarm])
+  expect(() => parseBackup(JSON.stringify({ ...data, records: { habits: [], alarmSounds: [{ ...alarm, mimeType: 'text/html', dataUrl: 'data:text/html;base64,WA==' }] } }))).toThrow('áudio personalizado')
 })
 
 test('valida a integridade das árvores de mapas mentais no backup', () => {

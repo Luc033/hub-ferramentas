@@ -24,7 +24,7 @@ export function App() {
   }, [])
   useEffect(() => { pomodoroService.reconcileClock() }, [])
   useEffect(() => {
-    audioService.configure(settings.soundEffects, settings.alarmVolume)
+    audioService.configure(settings.soundEffects, settings.alarmVolume, settings.selectedAlarmSoundId)
     focusSoundService.setVolume(settings.environmentVolume)
     focusSoundService.setMuted(settings.environmentMuted)
     if (clock.status !== 'alarming') audioService.stopAlarm()

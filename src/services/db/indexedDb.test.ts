@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach } from 'vitest'
-import { AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_SCHEMA_VERSION, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, MIND_MAP_MEDIA_SCHEMA_VERSION, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, transactionDone, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToMindMapMediaSchema, upgradeToMindMapSchema, upgradeToProductivitySchema } from './indexedDb'
+import { ALARM_SCHEMA_VERSION, ALARM_SOUNDS_STORE, AUDIO_SCHEMA_VERSION, BOARDS_STORE, CHECKINS_STORE, DB_NAME, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_SCHEMA_VERSION, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, MIND_MAP_MEDIA_SCHEMA_VERSION, NODES_STORE, NOTES_STORE, TASKS_STORE, closeDatabase, inspectDatabase, openDatabase, requestResult, transactionDone, upgradeToAlarmSchema, upgradeToAudioSchema, upgradeToCreativeSchema, upgradeToDatedCheckins, upgradeToMindMapMediaSchema, upgradeToMindMapSchema, upgradeToProductivitySchema } from './indexedDb'
 
 async function deleteTestDatabase() {
   closeDatabase()
@@ -65,6 +65,20 @@ test('adiciona biblioteca de áudio preservando hábitos e stores anteriores', a
   expect(upgraded.version).toBe(AUDIO_SCHEMA_VERSION)
   expect(upgraded.objectStoreNames.contains(FOCUS_PLAYLISTS_STORE)).toBe(true)
   expect(await new Promise((resolve, reject) => { const request = upgraded.transaction('habits').objectStore('habits').get('legacy'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })).toMatchObject({ name: 'Legado' })
+})
+
+test('adiciona a store de alarmes personalizados preservando todo o schema anterior', async () => {
+  const db = await openDatabase()
+  const tx = db.transaction('habits', 'readwrite')
+  tx.objectStore('habits').add({ id: 'antes-do-alarme', name: 'Preservado', days: Array(7).fill(false), createdAt: 2 })
+  await transactionDone(tx)
+  await upgradeToAlarmSchema()
+  const upgraded = await openDatabase()
+  expect(upgraded.version).toBe(ALARM_SCHEMA_VERSION)
+  expect(upgraded.objectStoreNames.contains(ALARM_SOUNDS_STORE)).toBe(true)
+  expect(upgraded.objectStoreNames.contains(MIND_MAP_ASSETS_STORE)).toBe(true)
+  const record = await requestResult(upgraded.transaction('habits', 'readonly').objectStore('habits').get('antes-do-alarme'))
+  expect(record).toMatchObject({ name: 'Preservado' })
 })
 
 test('adiciona mapas mentais em stores próprias sem reinterpretar o quadro livre', async () => {

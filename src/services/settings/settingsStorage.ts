@@ -1,9 +1,12 @@
+import { isAlarmSoundId, type AlarmSoundId } from '../audio/alarmSounds'
+
 export type Theme = 'dark' | 'light'
 
 export interface Settings {
   theme: Theme
   soundEffects: boolean
   alarmVolume: number
+  selectedAlarmSoundId: AlarmSoundId
   environmentVolume: number
   environmentMuted: boolean
   notificationsEnabled: boolean
@@ -18,7 +21,7 @@ export const SETTINGS_IMPORTED_EVENT = 'settings:imported'
 const STORAGE_KEY = 'hub.settings.v1'
 
 const DEFAULT_SETTINGS: Settings = {
-  theme: 'dark', soundEffects: true, alarmVolume: 60, environmentVolume: 30, environmentMuted: false,
+  theme: 'dark', soundEffects: true, alarmVolume: 60, selectedAlarmSoundId: 'original', environmentVolume: 30, environmentMuted: false,
   notificationsEnabled: false, pomodoroAutoStart: true, focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, focusesPerCycle: 4,
 }
 
@@ -33,6 +36,7 @@ export function readStoredSettings(): Settings {
       theme: value.theme === 'light' ? 'light' : 'dark',
       soundEffects: typeof value.soundEffects === 'boolean' ? value.soundEffects : true,
       alarmVolume: typeof value.alarmVolume === 'number' ? Math.min(100, Math.max(0, value.alarmVolume)) : 60,
+      selectedAlarmSoundId: isAlarmSoundId(value.selectedAlarmSoundId) ? value.selectedAlarmSoundId : 'original',
       environmentVolume: typeof value.environmentVolume === 'number' ? Math.min(100, Math.max(0, value.environmentVolume)) : 30,
       environmentMuted: typeof value.environmentMuted === 'boolean' ? value.environmentMuted : false,
       notificationsEnabled: typeof value.notificationsEnabled === 'boolean' ? value.notificationsEnabled : false,
@@ -51,6 +55,7 @@ export function normalizeImportedSettings(value: unknown): Settings | null {
   const valid = ['dark', 'light'].includes(String(item.theme))
     && typeof item.soundEffects === 'boolean'
     && typeof item.alarmVolume === 'number' && Number.isFinite(item.alarmVolume) && item.alarmVolume >= 0 && item.alarmVolume <= 100
+    && (item.selectedAlarmSoundId === undefined || isAlarmSoundId(item.selectedAlarmSoundId))
     && typeof item.environmentVolume === 'number' && Number.isFinite(item.environmentVolume) && item.environmentVolume >= 0 && item.environmentVolume <= 100
     && typeof item.environmentMuted === 'boolean' && typeof item.notificationsEnabled === 'boolean' && typeof item.pomodoroAutoStart === 'boolean'
     && Number.isInteger(item.focusMinutes) && item.focusMinutes! >= 1 && item.focusMinutes! <= 180
@@ -58,12 +63,12 @@ export function normalizeImportedSettings(value: unknown): Settings | null {
     && Number.isInteger(item.longBreakMinutes) && item.longBreakMinutes! >= 1 && item.longBreakMinutes! <= 60
     && (item.focusesPerCycle === undefined || Number.isInteger(item.focusesPerCycle) && item.focusesPerCycle >= 1 && item.focusesPerCycle <= 12)
   if (!valid) return null
-  return { ...item, focusesPerCycle: item.focusesPerCycle ?? 4 } as Settings
+  return { ...item, selectedAlarmSoundId: item.selectedAlarmSoundId ?? 'original', focusesPerCycle: item.focusesPerCycle ?? 4 } as Settings
 }
 
 export function persistSettings(settings: Settings) { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)) }
 
-export function applyStoredSettings(settings: Settings) {
+export function applyStoredSettings(settings: unknown) {
   const normalized = normalizeImportedSettings(settings)
   if (!normalized) throw new Error('As preferências do backup são inválidas.')
   persistSettings(normalized)

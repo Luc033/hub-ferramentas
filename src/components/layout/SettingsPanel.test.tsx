@@ -37,3 +37,12 @@ test('exporta e importa backup completo pelo painel global', async () => {
   await waitFor(() => expect(backupMocks.importData).toHaveBeenCalledWith(expect.anything(), 'merge'))
   expect(screen.getByText('2 registro(s) importado(s); 1 preservado(s). Preferências aplicadas.')).toBeInTheDocument()
 })
+
+test('oferece seleção exclusiva dos seis sons nativos e do áudio personalizado', () => {
+  render(<SettingsProvider><SettingsPanel /></SettingsProvider>)
+  fireEvent.click(screen.getByLabelText('Abrir configurações'))
+  expect(screen.getByText('SOM DO ALARME')).toBeInTheDocument()
+  expect(screen.getAllByRole('radio')).toHaveLength(7)
+  fireEvent.click(screen.getByRole('radio', { name: /Aurora/ }))
+  expect(screen.getByRole('radio', { name: /Aurora/ })).toBeChecked()
+})

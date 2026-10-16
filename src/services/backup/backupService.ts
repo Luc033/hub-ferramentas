@@ -1,5 +1,5 @@
 import type { Habit, HabitCheckin } from '../../features/habits/types'
-import { BOARDS_STORE, CHECKINS_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, HABITS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, NODES_STORE, NOTES_STORE, openDatabase, requestResult, transactionDone } from '../db/indexedDb'
+import { ALARM_SOUNDS_STORE, BOARDS_STORE, CHECKINS_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, HABITS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, NODES_STORE, NOTES_STORE, openDatabase, requestResult, transactionDone, upgradeToAlarmSchema } from '../db/indexedDb'
 import { TASKS_STORE } from '../db/indexedDb'
 import type { Task } from '../../features/tasks/types'
 import type { Board, MindEdge, MindNode, Note } from '../../features/notes/types'
@@ -7,6 +7,7 @@ import type { FocusPlaylist } from '../../features/focus-sounds/types'
 import type { MindMap, MindMapAsset, MindMapConnection, MindMapTopic } from '../../features/mind-maps/types'
 import { validateMindMapDocument } from '../../features/mind-maps/tree'
 import { applyStoredSettings, normalizeImportedSettings, readStoredSettings, type Settings } from '../settings/settingsStorage'
+import type { CustomAlarmSound } from '../audio/alarmSounds'
 
 export interface HubBackup {
   schemaVersion: number
@@ -64,6 +65,9 @@ const isMindMapTopic = (value: unknown): value is MindMapTopic => {
 const isMindMapConnection = (value: unknown): value is MindMapConnection => Boolean(value && typeof value === 'object' && typeof (value as MindMapConnection).id === 'string' && typeof (value as MindMapConnection).mapId === 'string' && typeof (value as MindMapConnection).sourceId === 'string' && typeof (value as MindMapConnection).targetId === 'string' && (value as MindMapConnection).sourceId !== (value as MindMapConnection).targetId && typeof (value as MindMapConnection).label === 'string' && typeof (value as MindMapConnection).color === 'string' && isFiniteNumber((value as MindMapConnection).width) && typeof (value as MindMapConnection).dashed === 'boolean' && typeof (value as MindMapConnection).directed === 'boolean' && ((value as MindMapConnection).shape === undefined || ['curve', 'straight'].includes(String((value as MindMapConnection).shape))) && ((value as MindMapConnection).startMarker === undefined || typeof (value as MindMapConnection).startMarker === 'boolean') && ((value as MindMapConnection).endMarker === undefined || typeof (value as MindMapConnection).endMarker === 'boolean') && ((value as MindMapConnection).curveOffset === undefined || isFiniteNumber((value as MindMapConnection).curveOffset) && Math.abs((value as MindMapConnection).curveOffset!) <= 240))
 type BackupAsset = Omit<MindMapAsset, 'blob'> & { dataUrl: string }
 const isMindMapAsset = (value: unknown): value is BackupAsset => Boolean(value && typeof value === 'object' && typeof (value as BackupAsset).id === 'string' && typeof (value as BackupAsset).mapId === 'string' && typeof (value as BackupAsset).name === 'string' && ['image/png', 'image/jpeg', 'image/webp'].includes((value as BackupAsset).mimeType) && isFiniteNumber((value as BackupAsset).size) && (value as BackupAsset).size <= 5 * 1024 * 1024 && typeof (value as BackupAsset).dataUrl === 'string' && (value as BackupAsset).dataUrl.startsWith(`data:${(value as BackupAsset).mimeType};base64,`))
+type BackupCustomAlarm = Omit<CustomAlarmSound, 'data'> & { dataUrl: string }
+const isCustomAlarm = (value: unknown): value is BackupCustomAlarm => Boolean(value && typeof value === 'object' && (value as BackupCustomAlarm).id === 'custom' && typeof (value as BackupCustomAlarm).name === 'string' && typeof (value as BackupCustomAlarm).mimeType === 'string' && ((value as BackupCustomAlarm).mimeType.startsWith('audio/') || (value as BackupCustomAlarm).mimeType === 'application/octet-stream') && isFiniteNumber((value as BackupCustomAlarm).size) && (value as BackupCustomAlarm).size > 0 && (value as BackupCustomAlarm).size <= 10 * 1024 * 1024 && isFiniteNumber((value as BackupCustomAlarm).updatedAt) && typeof (value as BackupCustomAlarm).dataUrl === 'string' && (value as BackupCustomAlarm).dataUrl.startsWith(`data:${(value as BackupCustomAlarm).mimeType};base64,`))
+const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob) })
 
 export function parseBackup(text: string): HubBackup {
   let parsed: unknown
@@ -90,6 +94,7 @@ export function parseBackup(text: string): HubBackup {
   if (backup.records.mindMapTopics && (!Array.isArray(backup.records.mindMapTopics) || !backup.records.mindMapTopics.every(isMindMapTopic))) throw new Error('Os tópicos dos mapas mentais são inválidos.')
   if (backup.records.mindMapConnections && (!Array.isArray(backup.records.mindMapConnections) || !backup.records.mindMapConnections.every(isMindMapConnection))) throw new Error('As conexões dos mapas mentais são inválidas.')
   if (backup.records.mindMapAssets && (!Array.isArray(backup.records.mindMapAssets) || !backup.records.mindMapAssets.every(isMindMapAsset))) throw new Error('As imagens dos mapas mentais são inválidas.')
+  if (backup.records.alarmSounds && (!Array.isArray(backup.records.alarmSounds) || !backup.records.alarmSounds.every(isCustomAlarm) || backup.records.alarmSounds.length > 1)) throw new Error('O áudio personalizado do backup é inválido.')
   if ((backup.records.mindMapConnections?.length || backup.records.mindMapAssets?.length) && !Array.isArray(backup.records.mindMaps)) throw new Error('Recursos visuais sem mapas no backup.')
   if (backup.records.mindMaps || backup.records.mindMapTopics) {
     const maps = (backup.records.mindMaps ?? []) as MindMap[]; const topics = (backup.records.mindMapTopics ?? []) as MindMapTopic[]
@@ -119,6 +124,7 @@ export async function createBackup(): Promise<HubBackup> {
   for (const storeName of stores) records[storeName] = await requestResult(transaction.objectStore(storeName).getAll()) as unknown[]
   await transactionDone(transaction)
   if (records[MIND_MAP_ASSETS_STORE]) records[MIND_MAP_ASSETS_STORE] = await Promise.all((records[MIND_MAP_ASSETS_STORE] as MindMapAsset[]).map(async ({ blob, ...asset }) => ({ ...asset, dataUrl: await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob) }) })))
+  if (records[ALARM_SOUNDS_STORE]) records[ALARM_SOUNDS_STORE] = await Promise.all((records[ALARM_SOUNDS_STORE] as CustomAlarmSound[]).map(async ({ data, ...alarm }) => ({ ...alarm, dataUrl: await blobToDataUrl(new Blob([data], { type: alarm.mimeType })) })))
   return { schemaVersion: db.version, exportedAt: new Date().toISOString(), appVersion: '1.0.0', records, preferences: { settings: readStoredSettings() } }
 }
 
@@ -135,7 +141,8 @@ export async function downloadBackup() {
 }
 
 export async function importBackup(backup: HubBackup, mode: ImportMode): Promise<ImportReport> {
-  const db = await openDatabase()
+  let db = await openDatabase()
+  if (backup.records.alarmSounds?.length && !db.objectStoreNames.contains(ALARM_SOUNDS_STORE)) { await upgradeToAlarmSchema(); db = await openDatabase() }
   if (backup.records.habitCheckins?.length && !db.objectStoreNames.contains(CHECKINS_STORE)) throw new Error('Habilite marcações por data antes de importar este backup.')
   if (backup.records.tasks?.length && !db.objectStoreNames.contains(TASKS_STORE)) throw new Error('Habilite o Kanban antes de importar tarefas.')
   if ([backup.records.notes, backup.records.boards, backup.records.nodes, backup.records.edges].some((records) => records?.length) && ![NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite Anotações antes de importar dados criativos.')
@@ -143,7 +150,8 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
   if ([backup.records.mindMaps, backup.records.mindMapTopics].some((records) => records?.length) && ![MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite Mapas Mentais antes de importar esses dados.')
   if ([backup.records.mindMapConnections, backup.records.mindMapAssets].some((records) => records?.length) && ![MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE].every((name) => db.objectStoreNames.contains(name))) throw new Error('Habilite os recursos visuais dos mapas antes de importar conexões ou imagens.')
   const restoredAssets = await Promise.all(((backup.records.mindMapAssets ?? []) as BackupAsset[]).map(async ({ dataUrl, ...asset }) => ({ ...asset, blob: await (await fetch(dataUrl)).blob() })))
-  const optionalStores = [CHECKINS_STORE, TASKS_STORE, NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE].filter((name) => db.objectStoreNames.contains(name))
+  const restoredAlarms = await Promise.all(((backup.records.alarmSounds ?? []) as BackupCustomAlarm[]).map(async ({ dataUrl, ...alarm }) => ({ ...alarm, data: await (await fetch(dataUrl)).arrayBuffer() })))
+  const optionalStores = [CHECKINS_STORE, TASKS_STORE, NOTES_STORE, BOARDS_STORE, NODES_STORE, EDGES_STORE, FOCUS_PLAYLISTS_STORE, MIND_MAPS_STORE, MIND_MAP_TOPICS_STORE, MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE, ALARM_SOUNDS_STORE].filter((name) => db.objectStoreNames.contains(name))
   const stores = [HABITS_STORE, ...optionalStores]
   const transaction = db.transaction(stores, 'readwrite')
   const habitsStore = transaction.objectStore(HABITS_STORE)
@@ -158,6 +166,7 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
   const mindMapTopicsStore = stores.includes(MIND_MAP_TOPICS_STORE) ? transaction.objectStore(MIND_MAP_TOPICS_STORE) : null
   const mindMapConnectionsStore = stores.includes(MIND_MAP_CONNECTIONS_STORE) ? transaction.objectStore(MIND_MAP_CONNECTIONS_STORE) : null
   const mindMapAssetsStore = stores.includes(MIND_MAP_ASSETS_STORE) ? transaction.objectStore(MIND_MAP_ASSETS_STORE) : null
+  const alarmSoundsStore = stores.includes(ALARM_SOUNDS_STORE) ? transaction.objectStore(ALARM_SOUNDS_STORE) : null
   let imported = 0
   let ignored = 0
 
@@ -165,7 +174,7 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
     habitsStore.clear()
     checkinsStore?.clear()
     tasksStore?.clear()
-    notesStore?.clear(); boardsStore?.clear(); nodesStore?.clear(); edgesStore?.clear(); focusPlaylistsStore?.clear(); mindMapsStore?.clear(); mindMapTopicsStore?.clear(); mindMapConnectionsStore?.clear(); mindMapAssetsStore?.clear()
+    notesStore?.clear(); boardsStore?.clear(); nodesStore?.clear(); edgesStore?.clear(); focusPlaylistsStore?.clear(); mindMapsStore?.clear(); mindMapTopicsStore?.clear(); mindMapConnectionsStore?.clear(); mindMapAssetsStore?.clear(); alarmSoundsStore?.clear()
     backup.records.habits.forEach((record) => { habitsStore.put(record); imported++ })
     backup.records.habitCheckins?.forEach((record) => { checkinsStore?.put(record); imported++ })
     backup.records.tasks?.forEach((record) => { tasksStore?.put(record); imported++ })
@@ -178,6 +187,7 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
     backup.records.mindMapTopics?.forEach((record) => { mindMapTopicsStore?.put(record); imported++ })
     backup.records.mindMapConnections?.forEach((record) => { mindMapConnectionsStore?.put(record); imported++ })
     restoredAssets.forEach((record) => { mindMapAssetsStore?.put(record); imported++ })
+    restoredAlarms.forEach((record) => { alarmSoundsStore?.put(record); imported++ })
   } else {
     for (const record of backup.records.habits) {
       const existing = await requestResult(habitsStore.get(record.id))
@@ -210,7 +220,7 @@ export async function importBackup(backup: HubBackup, mode: ImportMode): Promise
         mindMapsStore!.add(map); mapTopics.forEach((topic) => mindMapTopicsStore!.add(topic)); imported += 1 + mapTopics.length
       }
     }
-    for (const [records, store] of [[backup.records.mindMapConnections, mindMapConnectionsStore], [restoredAssets, mindMapAssetsStore]] as const) for (const record of records ?? []) { const existing = store ? await requestResult(store.get((record as { id: string }).id)) : true; if (existing) ignored++; else { store!.add(record); imported++ } }
+    for (const [records, store] of [[backup.records.mindMapConnections, mindMapConnectionsStore], [restoredAssets, mindMapAssetsStore], [restoredAlarms, alarmSoundsStore]] as const) for (const record of records ?? []) { const existing = store ? await requestResult(store.get((record as { id: string }).id)) : true; if (existing) ignored++; else { store!.add(record); imported++ } }
   }
   await transactionDone(transaction)
   window.dispatchEvent(new Event('habits:changed'))

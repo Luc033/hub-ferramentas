@@ -19,6 +19,8 @@ export const MIND_MAP_SCHEMA_VERSION = 6
 export const MIND_MAP_CONNECTIONS_STORE = 'mindMapConnections'
 export const MIND_MAP_ASSETS_STORE = 'mindMapAssets'
 export const MIND_MAP_MEDIA_SCHEMA_VERSION = 7
+export const ALARM_SOUNDS_STORE = 'alarmSounds'
+export const ALARM_SCHEMA_VERSION = 8
 
 let connection: IDBDatabase | null = null
 let opening: Promise<IDBDatabase> | null = null
@@ -272,6 +274,29 @@ export async function upgradeToMindMapMediaSchema(): Promise<HabitDatabaseInfo> 
     request.onsuccess = () => { configureConnection(request.result); resolve() }
     request.onerror = () => reject(request.error ?? new Error('Não foi possível habilitar os recursos visuais dos mapas.'))
     request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de habilitar os recursos visuais.'))
+  })
+  return inspectDatabase()
+}
+
+export async function upgradeToAlarmSchema(): Promise<HabitDatabaseInfo> {
+  let current = await openDatabase()
+  if (current.objectStoreNames.contains(ALARM_SOUNDS_STORE)) return inspectDatabase()
+  if (current.version > ALARM_SCHEMA_VERSION) throw new Error(`A base usa a versão ${current.version}, mais nova que esta aplicação.`)
+  if (![MIND_MAP_CONNECTIONS_STORE, MIND_MAP_ASSETS_STORE].every((name) => current.objectStoreNames.contains(name))) {
+    await upgradeToMindMapMediaSchema()
+    current = await openDatabase()
+  }
+  if (current.objectStoreNames.contains(ALARM_SOUNDS_STORE)) return inspectDatabase()
+  closeDatabase()
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, ALARM_SCHEMA_VERSION)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(ALARM_SOUNDS_STORE)) db.createObjectStore(ALARM_SOUNDS_STORE, { keyPath: 'id' })
+    }
+    request.onsuccess = () => { configureConnection(request.result); resolve() }
+    request.onerror = () => reject(request.error ?? new Error('Não foi possível habilitar áudios personalizados.'))
+    request.onblocked = () => reject(new Error('Outra aba está usando o Hub. Feche-a antes de importar um áudio.'))
   })
   return inspectDatabase()
 }
