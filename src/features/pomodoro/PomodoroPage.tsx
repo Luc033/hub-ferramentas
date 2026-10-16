@@ -1,14 +1,17 @@
 import { Coffee, FastForward, Pause, Play, RotateCcw, Square, Timer } from 'lucide-react'
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
 import { Button } from '../../components/ui/Button'
+import { durationToFlipClockValues, FlipClockDisplay } from '../../components/flip-clock/FlipClockDisplay'
 import { audioService } from '../../services/audio/audioService'
-import { clockService, formatDuration, shouldConfirmClockReplacement } from '../../services/clock/ClockService'
+import { clockService, shouldConfirmClockReplacement } from '../../services/clock/ClockService'
 import { useClock } from '../../services/clock/useClock'
 import { pomodoroService } from './pomodoroService'
 import { usePomodoro } from './usePomodoro'
 import { useSettings } from '../../app/providers/SettingsProvider'
 
 const phaseLabels = { focus: 'Foco', 'short-break': 'Pausa curta', 'long-break': 'Pausa longa' }
+const MINUTES_AND_SECONDS = ['minutes', 'seconds'] as const
+const FULL_CLOCK = ['hours', 'minutes', 'seconds'] as const
 
 export default function PomodoroPage() {
   const pomodoro = usePomodoro()
@@ -17,7 +20,11 @@ export default function PomodoroPage() {
   const ownsClock = clock.mode === 'pomodoro'
   const running = ownsClock && clock.status === 'running'
   const paused = ownsClock && clock.status === 'paused'
-  const remaining = ownsClock ? clock.remainingMs : 0
+  const phaseDurationMs = (pomodoro.phase === 'focus' ? settings.focusMinutes : pomodoro.phase === 'short-break' ? settings.shortBreakMinutes : settings.longBreakMinutes) * 60_000
+  const remaining = ownsClock ? clock.remainingMs : phaseDurationMs
+  const displayValues = durationToFlipClockValues(remaining)
+  const showHours = (ownsClock ? clock.durationMs : phaseDurationMs) >= 60 * 60_000
+  const reducedMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const start = () => {
     if (shouldConfirmClockReplacement(clock, 'pomodoro') && !window.confirm(`Existe uma sessão ${clock.mode === 'timer' ? 'do Timer' : 'Pomodoro'} configurada. Deseja encerrá-la e iniciar um novo Pomodoro?`)) return
@@ -29,7 +36,7 @@ export default function PomodoroPage() {
     <section className="app-card relative flex min-h-[620px] flex-col items-center justify-center overflow-hidden p-6 text-center md:p-12">
       <div aria-hidden className={`pointer-events-none absolute left-1/2 top-1/2 h-[110%] w-[110%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[110px] ${pomodoro.phase === 'focus' ? 'bg-rose-500/10' : 'bg-emerald-500/10'}`} />
       <div className="z-10 mb-6 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/80 px-4 py-2 font-semibold text-slate-300">{pomodoro.phase === 'focus' ? <Timer size={18} className="text-rose-400" /> : <Coffee size={18} className="text-emerald-400" />}{phaseLabels[pomodoro.phase]}</div>
-      <div className="timer-digits z-10 mb-7 font-mono text-[3.5rem] font-bold leading-none text-white sm:text-[6rem] md:text-[8rem]" aria-live="polite">{formatDuration(remaining)}</div>
+      <div className="z-10 mb-7 w-full max-w-lg" aria-live="polite" aria-label="Tempo restante do Pomodoro"><FlipClockDisplay values={displayValues} size="compact" visibleUnits={showHours ? FULL_CLOCK : MINUTES_AND_SECONDS} reducedMotion={reducedMotion} transitionKey={`${clock.status}-${clock.runId ?? pomodoro.phase}-${pomodoro.phase}`} /></div>
       {ownsClock && clock.taskTitle && <div className="z-10 mb-6 inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-200"><span className="max-w-xs truncate">{clock.taskTitle}</span><button aria-label="Desvincular tarefa" onClick={() => clockService.clearTask()} className="font-bold">×</button></div>}
       <div className="z-10 mb-8 flex max-w-full flex-wrap justify-center gap-3" aria-label={`Ciclo: ${Math.min(pomodoro.completedInCycle, settings.focusesPerCycle)} de ${settings.focusesPerCycle} focos concluídos`}>{Array.from({ length: settings.focusesPerCycle }, (_, index) => <span key={index} className={`h-3 w-12 rounded-full border ${index < pomodoro.completedInCycle ? 'border-rose-400 bg-rose-500' : 'border-slate-600 bg-slate-800'}`} />)}</div>
       {pomodoro.transitionMessage && <p role="status" className="z-10 mb-6 max-w-md rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{pomodoro.transitionMessage}</p>}

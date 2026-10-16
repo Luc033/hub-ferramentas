@@ -31,7 +31,7 @@ test('usa requestAnimationFrame para avançar o SVG e cancela o loop ao pausar',
 
 test('congela em cem por cento quando o temporizador encerra', () => {
   render(<TimerProgressRing status="alarming" durationMs={10_000} remainingMs={0} endAt={null} reducedMotion />)
-  expect(screen.getByTestId('timer-progress')).toHaveAttribute('stroke', '#ef4444')
+  expect(screen.getByTestId('timer-progress')).toHaveAttribute('stroke', 'var(--timer-expired)')
   expect(screen.getByTestId('timer-progress')).toHaveAttribute('stroke-dashoffset', '0')
 })
 

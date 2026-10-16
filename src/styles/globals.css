@@ -28,26 +28,28 @@ button:disabled { cursor: not-allowed; }
 .text-muted { color: var(--text-muted); }
 .text-strong { color: var(--text-strong); }
 .timer-digits { font-variant-numeric: tabular-nums; }
-.timer-page { background: var(--bg); }
-.timer-flip-display { display: grid; width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: clamp(.25rem, 1.5vw, .75rem); }
-.timer-flip-unit { --flip-card-gap: .12rem; display: flex; min-width: 0; flex-direction: column; align-items: center; }
-.timer-flip-unit-regular { --flip-card-width: clamp(1.45rem, 5.6vw, 2.05rem); --flip-card-height: clamp(3.1rem, 11vw, 4.2rem); --flip-digit-size: clamp(1.8rem, 7vw, 2.8rem); }
-.timer-flip-unit-prominent { --flip-card-width: clamp(1.6rem, 8vw, 2.8rem); --flip-card-height: clamp(3.5rem, 13vw, 5.3rem); --flip-digit-size: clamp(2.05rem, 9vw, 3.65rem); }
-.timer-flip-step { display: flex; min-height: 2.15rem; width: 100%; align-items: center; justify-content: center; border: 0; background: transparent; color: #22d3ee; font-size: 1.45rem; font-weight: 600; line-height: 1; transition: color 150ms ease, opacity 150ms ease; }
-.timer-flip-step:hover:not(:disabled) { color: #a5f3fc; }
-.timer-flip-step:disabled { opacity: .3; }
-.timer-flip-edit { position: relative; border: 1px solid rgb(51 65 85 / .9); border-radius: .55rem; background: #07101d; box-shadow: 0 10px 22px rgb(0 0 0 / .24); }
-.timer-flip-edit:focus-within { border-color: #22d3ee; box-shadow: 0 0 0 2px rgb(34 211 238 / .18), 0 10px 22px rgb(0 0 0 / .3); }
-.timer-flip-input { position: absolute; inset: 0; z-index: 40; width: 100%; border: 0; border-radius: inherit; background: transparent; color: transparent !important; caret-color: #67e8f9; opacity: .01; outline: none; }
-.timer-flip-input:disabled { cursor: default; }
-.timer-flip-label { margin-top: .45rem; color: var(--text-muted); font-size: .72rem; font-weight: 600; letter-spacing: .09em; line-height: 1; }
+.timer-page { background: var(--timer-page-bg); }
+.flip-clock-display { display: grid; width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: clamp(.25rem, 1.5vw, .75rem); }
+.flip-clock-display-compact { max-width: 28rem; margin-inline: auto; }
+.flip-clock-unit { --flip-card-gap: .12rem; display: flex; min-width: 0; flex-direction: column; align-items: center; }
+.flip-clock-unit-regular { --flip-card-width: clamp(1.45rem, 5.6vw, 2.05rem); --flip-card-height: clamp(3.1rem, 11vw, 4.2rem); --flip-digit-size: clamp(1.8rem, 7vw, 2.8rem); }
+.flip-clock-unit-prominent { --flip-card-width: clamp(1.6rem, 8vw, 2.8rem); --flip-card-height: clamp(3.5rem, 13vw, 5.3rem); --flip-digit-size: clamp(2.05rem, 9vw, 3.65rem); }
+.flip-clock-unit-compact { --flip-card-width: clamp(2.25rem, 8vw, 3.4rem); --flip-card-height: clamp(4rem, 13vw, 6rem); --flip-digit-size: clamp(2.5rem, 9.5vw, 4.25rem); }
+.flip-clock-step { display: flex; min-height: 2.15rem; width: 100%; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--timer-progress); font-size: 1.45rem; font-weight: 600; line-height: 1; transition: color 150ms ease, opacity 150ms ease; }
+.flip-clock-step:hover:not(:disabled) { color: var(--timer-progress-highlight); }
+.flip-clock-step:disabled { opacity: .3; }
+.flip-clock-card { position: relative; border: 1px solid var(--timer-border); border-radius: .55rem; background: var(--flip-card-bottom); box-shadow: var(--flip-card-shadow); }
+.flip-clock-card:focus-within { border-color: var(--timer-progress); box-shadow: 0 0 0 2px var(--timer-progress-shadow), var(--flip-card-shadow); }
+.flip-clock-input { position: absolute; inset: 0; z-index: 40; width: 100%; border: 0; border-radius: inherit; background: transparent; color: transparent !important; caret-color: var(--timer-progress-highlight); opacity: .01; outline: none; }
+.flip-clock-input:disabled { cursor: default; }
+.flip-clock-label { margin-top: .45rem; color: var(--text-muted); font-size: .72rem; font-weight: 600; letter-spacing: .09em; line-height: 1; }
 .timer-progress-liquid, .timer-progress-glow-active, .timer-progress-wave { will-change: stroke-dashoffset; }
-.timer-progress-liquid { animation: timer-liquid-shimmer 2.2s ease-in-out infinite; }
-.timer-progress-alarm { animation: timer-alarm-glow 1.15s ease-in-out infinite; }
-@keyframes timer-liquid-shimmer { 0%, 100% { stroke-opacity: .82; } 50% { stroke-opacity: 1; } }
+.timer-progress-liquid { animation: timer-liquid-shimmer 2.8s ease-in-out infinite; }
+.timer-progress-alarm { animation: timer-alarm-glow 1.3s ease-in-out infinite; }
+@keyframes timer-liquid-shimmer { 0%, 100% { stroke-opacity: .9; } 50% { stroke-opacity: 1; } }
 @keyframes timer-alarm-glow {
-  0%, 100% { filter: drop-shadow(0 0 5px rgb(239 68 68 / .55)); opacity: .82; }
-  50% { filter: drop-shadow(0 0 18px rgb(239 68 68 / 1)); opacity: 1; }
+  0%, 100% { filter: drop-shadow(0 0 2px var(--timer-expired-shadow)); opacity: .92; }
+  50% { filter: drop-shadow(0 0 5px var(--timer-expired-shadow)); opacity: 1; }
 }
 .map-card-action { display: inline-flex; min-height: 2.25rem; align-items: center; justify-content: center; gap: .35rem; border-radius: .65rem; padding: .4rem .7rem; color: var(--text-muted); font-size: .8rem; font-weight: 600; }
 .map-card-action:hover { background: color-mix(in srgb, var(--surface-muted) 75%, transparent); color: var(--text-strong); }
@@ -111,6 +113,28 @@ g:has(> .mind-map-connection-hit:hover) > .mind-map-transverse { filter: drop-sh
 :root[data-theme='light'] input,
 :root[data-theme='light'] select,
 :root[data-theme='light'] textarea { color: #0f172a; }
+.timer-center-surface { border: 1px solid var(--timer-border); background: var(--timer-surface-inner); box-shadow: 0 6px 18px rgb(15 23 42 / .08); }
+.timer-page-glow-running { background: var(--timer-progress-shadow); }
+.timer-page-glow-expired { background: var(--timer-expired-shadow); }
+.timer-page-glow-paused, .timer-page-glow-available { background: transparent; }
+.timer-info-card, .timer-setting-card { border: 1px solid var(--timer-border); background: var(--timer-card); box-shadow: 0 5px 14px rgb(15 23 42 / .06); }
+.timer-info-icon { color: var(--timer-icon); }
+.timer-info-label { color: var(--timer-card-label); }
+.timer-info-value { color: var(--timer-card-value); }
+.timer-status-available { color: var(--timer-card-label); }
+.timer-status-running { color: var(--timer-progress); }
+.timer-status-paused { color: var(--warning); }
+.timer-status-expired { color: var(--timer-expired); }
+.timer-status-dot-active { box-shadow: 0 0 7px currentColor; }
+.timer-preset { position: relative; min-height: 3rem; border: 1px solid var(--timer-border); border-radius: .75rem; background: var(--timer-card); padding-inline: .75rem; color: var(--timer-card-value); font-weight: 600; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
+.timer-preset:hover:not(:disabled) { border-color: var(--timer-progress); color: var(--timer-progress); }
+.timer-preset-selected { border-color: var(--timer-progress); background: color-mix(in srgb, var(--timer-progress) 12%, var(--timer-card)); color: var(--timer-progress); box-shadow: 0 3px 10px var(--timer-progress-shadow); }
+.timer-preset:disabled { cursor: not-allowed; opacity: .62; }
+.timer-page .timer-action-secondary { border-color: var(--timer-border); background: var(--timer-card); color: var(--timer-card-value); box-shadow: 0 4px 12px rgb(15 23 42 / .05); }
+.timer-page .timer-action-secondary:hover:not(:disabled) { border-color: var(--timer-progress); background: var(--timer-surface-inner); color: var(--timer-progress); }
+.timer-page [role='switch'] { border-color: var(--timer-border); background: var(--timer-surface-inner); }
+.timer-page [role='switch'][aria-checked='true'] { border-color: var(--timer-progress); background: var(--timer-progress); }
+.flip-clock-display-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 19rem; }
 @media (max-width: 640px) {
   .mind-map-editor footer span:first-child { max-width: 72vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .topic-action { min-height: 2.75rem; }

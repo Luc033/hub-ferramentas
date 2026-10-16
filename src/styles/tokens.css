@@ -16,6 +16,27 @@
   --warning: #f59e0b;
   --danger: #ef4444;
   --focus-ring: #818cf8;
+  --timer-page-bg: #0a0f1c;
+  --timer-surface: #081624;
+  --timer-surface-inner: #07111d;
+  --timer-border: #1f3c50;
+  --timer-card: #0f1c2d;
+  --timer-card-label: #94a3b8;
+  --timer-card-value: #f8fafc;
+  --timer-icon: #cbd5e1;
+  --timer-track: #103747;
+  --timer-progress: #22d3ee;
+  --timer-progress-highlight: #67e8f9;
+  --timer-progress-shadow: rgb(34 211 238 / .18);
+  --timer-expired: #ef4444;
+  --timer-expired-track: #4b1d28;
+  --timer-expired-shadow: rgb(239 68 68 / .22);
+  --flip-card-top: #0b1424;
+  --flip-card-bottom: #07101d;
+  --flip-card-text: #f8fafc;
+  --flip-card-line: rgb(0 0 0 / .7);
+  --flip-card-shadow: 0 7px 14px rgb(0 0 0 / .22), inset 0 1px 0 rgb(148 163 184 / .07);
+  --flip-digit-shadow: 0 2px 3px rgb(0 0 0 / .58);
 }
 
 :root[data-theme='light'] {
@@ -35,4 +56,25 @@
   --warning: #b45309;
   --danger: #b91c1c;
   --focus-ring: #4f46e5;
+  --timer-page-bg: #f5f8fc;
+  --timer-surface: #ffffff;
+  --timer-surface-inner: #f8fafd;
+  --timer-border: #d8e2ef;
+  --timer-card: #ffffff;
+  --timer-card-label: #475569;
+  --timer-card-value: #0f172a;
+  --timer-icon: #0f3a55;
+  --timer-track: #d1eaf2;
+  --timer-progress: #0891b2;
+  --timer-progress-highlight: #06b6d4;
+  --timer-progress-shadow: rgb(8 145 178 / .12);
+  --timer-expired: #dc3545;
+  --timer-expired-track: #fee2e2;
+  --timer-expired-shadow: rgb(220 53 69 / .14);
+  --flip-card-top: #172235;
+  --flip-card-bottom: #111b2c;
+  --flip-card-text: #f8fafc;
+  --flip-card-line: rgb(0 0 0 / .35);
+  --flip-card-shadow: 0 5px 12px rgb(15 23 42 / .12), inset 0 1px 0 rgb(255 255 255 / .05);
+  --flip-digit-shadow: 0 1px 2px rgb(0 0 0 / .4);
 }
