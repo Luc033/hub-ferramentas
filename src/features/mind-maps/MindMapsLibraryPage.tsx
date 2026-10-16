@@ -8,6 +8,7 @@ import { downloadBackup } from '../../services/backup/backupService'
 import { mindMapsRepository } from '../../services/db/mindMapsRepository'
 import type { MindMapSummary } from './types'
 import { createMindMapFile, downloadBlob, parseMindMapFile, remapMindMapFile, safeFileName } from './mindMapTransfer'
+import notesLogo from '../../assets/logo-mapa.webp'
 
 type SortOrder = 'updated' | 'created' | 'name-asc' | 'name-desc'
 const normalizeSearch = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
@@ -90,7 +91,7 @@ export default function MindMapsLibraryPage() {
       <Link to="/" className="text-sm font-semibold text-slate-400 hover:text-white">Voltar ao Hub</Link>
     </nav>
     <header className="app-card mb-6 flex flex-wrap items-end justify-between gap-5 p-6">
-      <div><span className="mb-3 inline-flex rounded-2xl border border-violet-500/20 bg-violet-500/10 p-3 text-violet-400"><Map size={25} /></span><h1 className="text-2xl font-bold text-strong md:text-3xl">Mapas Mentais</h1><p className="mt-2 max-w-2xl text-sm text-slate-400">Organize ideias em árvores visuais. Tudo fica armazenado somente neste navegador.</p></div>
+      <div><span className="mb-3 inline-flex rounded-2xl border border-violet-500/20 bg-violet-500/10 p-3"><img src={notesLogo} alt="" className="h-7 w-7 object-contain" /></span><h1 className="text-2xl font-bold text-strong md:text-3xl">Mapas Mentais</h1><p className="mt-2 max-w-2xl text-sm text-slate-400">Organize ideias em árvores visuais. Tudo fica armazenado somente neste navegador.</p></div>
       {enabled && <div className="flex flex-wrap gap-2"><label className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 font-semibold text-slate-300 ${busy ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-slate-700'}`}><Upload size={17} />Importar mapa<input aria-label="Selecionar mapa para importar" className="sr-only" type="file" accept="application/json,.json,.hubmap.json" disabled={busy} onChange={(event) => { void importMap(event.target.files?.[0]); event.currentTarget.value = '' }} /></label><Button disabled={busy} onClick={openCreate}><Plus size={18} />Novo mapa</Button></div>}
     </header>
     {error && <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200"><span>{error}</span><button className="font-semibold underline" onClick={() => { void load() }}>Tentar novamente</button></div>}

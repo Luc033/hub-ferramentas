@@ -4,6 +4,7 @@ import habitsLogo from '../assets/logo-habitos.webp'
 import pomodoroLogo from '../assets/logo-pomodoro.webp'
 import timerLogo from '../assets/logo-timer.webp'
 import kanbanLogo from '../assets/logo-kanban.webp'
+import notesLogo from '../assets/logo-mapa.webp'
 
 export type ToolStatus = 'available' | 'coming-soon'
 export type WidgetKind = 'habits' | 'timer' | 'pomodoro' | 'tasks' | 'notes' | 'sounds'
@@ -25,6 +26,6 @@ export const toolRegistry: readonly ToolDefinition[] = [
   { id: 'pomodoro', title: 'Foco Pomodoro', description: 'Gerencie períodos de trabalho e pausas usando a técnica Pomodoro.', path: '/pomodoro', icon: Timer, logo: pomodoroLogo, accent: 'rose', status: 'available', widget: 'pomodoro' },
   { id: 'timer', title: 'Temporizador', description: 'Contagem regressiva com presets, entrada personalizada e alarme sonoro.', path: '/timer', icon: Clock3, logo: timerLogo, accent: 'cyan', status: 'available', widget: 'timer' },
   { id: 'tasks', title: 'Kanban', description: 'Organize tarefas em um quadro visual simples e acessível.', path: '/tasks', icon: ListTodo, logo: kanbanLogo, accent: 'amber', status: 'available', widget: 'tasks' },
-  { id: 'notes', title: 'Anotações / Mapa Mental', description: 'Capture ideias em notas, mapas hierárquicos e quadros visuais.', path: '/notes', icon: Network, accent: 'violet', status: 'available', widget: 'notes' },
+  { id: 'notes', title: 'Anotações / Mapa Mental', description: 'Capture ideias em notas, mapas hierárquicos e quadros visuais.', path: '/notes', icon: Network, logo: notesLogo, accent: 'violet', status: 'available', widget: 'notes' },
   { id: 'sounds', title: 'Sons de Foco', description: 'Crie um ambiente sonoro para concentração e descanso.', path: '/sounds', icon: Headphones, accent: 'blue', status: 'available', widget: 'sounds' },
 ]

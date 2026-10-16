@@ -1,11 +1,12 @@
 export const HOME_TITLE = 'Hub | Ferramentas Pessoais'
 export const HUB_FAVICON = '/hub-logo.svg?v=1'
 
-export function faviconForPath(pathname: string, habitsFavicon: string, pomodoroFavicon: string, timerFavicon: string, kanbanFavicon: string) {
+export function faviconForPath(pathname: string, habitsFavicon: string, pomodoroFavicon: string, timerFavicon: string, kanbanFavicon: string, notesFavicon: string) {
   if (pathname === '/habits') return habitsFavicon
   if (pathname === '/pomodoro') return pomodoroFavicon
   if (pathname === '/timer') return timerFavicon
   if (pathname === '/tasks') return kanbanFavicon
+  if (pathname === '/notes' || pathname.startsWith('/notes/maps')) return notesFavicon
   return HUB_FAVICON
 }
 

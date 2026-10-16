@@ -51,3 +51,10 @@ test('cartão de Kanban usa o logotipo de imagem', () => {
   expect(screen.getByRole('heading', { name: 'Kanban' })).toBeInTheDocument()
   expect(view.container.querySelector('img[src*="logo-kanban"]')).toBeInTheDocument()
 })
+
+test('cartão de Anotações e Mapa Mental usa o logotipo de imagem', () => {
+  const tool = toolRegistry.find((item) => item.id === 'notes')!
+  const view = render(<SettingsProvider><MemoryRouter><ToolCard tool={tool} habitSummary={null} tasksSummary={null} notesSummary={null} onRetry={vi.fn()} /></MemoryRouter></SettingsProvider>)
+  expect(screen.getByRole('heading', { name: 'Anotações / Mapa Mental' })).toBeInTheDocument()
+  expect(view.container.querySelector('img[src*="logo-mapa"]')).toBeInTheDocument()
+})

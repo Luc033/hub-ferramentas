@@ -17,6 +17,7 @@ import { formatImageBytes, prepareMindMapImage } from './imageProcessing'
 import { hasConnectionBetween } from './connectionRules'
 import { clampMindMapZoom, zoomViewportAtPoint } from './viewport'
 import type { NewMindMapLink } from './linkValidation'
+import notesLogo from '../../assets/logo-mapa.webp'
 
 type SaveState = 'saved' | 'saving' | 'error'
 interface History { past: MindMapDocument[]; future: MindMapDocument[] }
@@ -515,7 +516,7 @@ export default function MindMapEditorPage() {
   return <main className={`mind-map-editor mind-map-theme-${document.map.theme ?? 'classic'} flex min-h-[100dvh] flex-col overflow-hidden bg-[var(--bg)]`}>
     <header className="z-20 flex min-h-16 flex-wrap items-center gap-2 border-b border-slate-700 bg-slate-900/95 px-3 py-2 shadow-lg md:px-5">
       <Link to="/notes/maps" aria-label="Voltar à biblioteca" className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-300 hover:bg-slate-800"><ArrowLeft size={18} /><span className="hidden sm:inline">Mapas mentais</span></Link>
-      <Map size={18} className="hidden text-violet-400 sm:block" />
+      <img src={notesLogo} alt="" className="hidden h-6 w-6 object-contain sm:block" />
       <input aria-label="Nome do mapa" maxLength={100} value={document.map.name} onChange={(event) => { const next = { ...document, map: { ...document.map, name: event.target.value } }; setDocument(next); documentRef.current = next; setSaveState('saving') }} onBlur={renameMap} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} className="min-h-10 min-w-32 flex-1 rounded-lg border border-transparent bg-transparent px-2 font-semibold text-strong hover:border-slate-700 focus:border-violet-500 sm:max-w-md" />
       <span role="status" aria-live="polite" className={`text-xs ${saveState === 'error' ? 'text-red-400' : saveState === 'saving' ? 'text-amber-400' : 'text-emerald-400'}`}>{saveState === 'saving' ? 'Salvando…' : saveState === 'error' ? 'Falha ao salvar' : 'Salvo'}</span>
       {saveState === 'error' && <button className="rounded-lg px-2 py-1 text-xs font-semibold text-red-300 underline" onClick={() => { const current = documentRef.current; if (current) void queueSave(current).catch(() => undefined) }}>Tentar novamente</button>}

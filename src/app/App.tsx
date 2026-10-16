@@ -16,6 +16,7 @@ import habitsFavicon from '../assets/favicon-habitos.png'
 import pomodoroFavicon from '../assets/favicon-pomodoro.png'
 import timerFavicon from '../assets/favicon-timer.png'
 import kanbanFavicon from '../assets/favicon-kanban.png'
+import notesFavicon from '../assets/favicon-mapa.png'
 
 export function App() {
   const clock = useClock()
@@ -38,8 +39,8 @@ export function App() {
     else if (clock.status === 'alarming') document.title = '⏰ Alarme | Hub'
     else document.title = documentTitleForPath(location.pathname)
     const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-    favicon?.setAttribute('href', faviconForPath(location.pathname, habitsFavicon, pomodoroFavicon, timerFavicon, kanbanFavicon))
-    favicon?.setAttribute('type', ['/habits', '/pomodoro', '/timer', '/tasks'].includes(location.pathname) ? 'image/png' : 'image/svg+xml')
+    favicon?.setAttribute('href', faviconForPath(location.pathname, habitsFavicon, pomodoroFavicon, timerFavicon, kanbanFavicon, notesFavicon))
+    favicon?.setAttribute('type', ['/habits', '/pomodoro', '/timer', '/tasks', '/notes'].includes(location.pathname) || location.pathname.startsWith('/notes/maps') ? 'image/png' : 'image/svg+xml')
     if (clock.status === 'alarming') {
       const pomodoroMessage = clock.mode === 'pomodoro' ? pomodoroService.getSnapshot().transitionMessage ?? undefined : undefined
       void completionAlertsService.process(clock, settings.notificationsEnabled, pomodoroMessage).then((result) => {
