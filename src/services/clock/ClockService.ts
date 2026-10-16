@@ -10,6 +10,7 @@ export interface ClockState {
   endAt: number | null
   finishedAt: number | null
   notificationSent: boolean
+  runId: string | null
   taskId: string | null
   taskTitle: string | null
 }
@@ -23,7 +24,11 @@ export function shouldConfirmClockReplacement(state: ClockState, nextMode: Clock
 export function hasConfiguredClockSession(state: ClockState) { return state.status !== 'idle' }
 
 const STORAGE_KEY = 'hub.timer.session.v1'
-const EMPTY_STATE: ClockState = { status: 'idle', mode: 'timer', durationMs: 0, remainingMs: 0, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, taskId: null, taskTitle: null }
+const EMPTY_STATE: ClockState = { status: 'idle', mode: 'timer', durationMs: 0, remainingMs: 0, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, runId: null, taskId: null, taskTitle: null }
+
+function createRunId(now: number) {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${now}-${Math.random().toString(36).slice(2)}`
+}
 
 export function formatDuration(milliseconds: number) {
   const total = Math.max(0, Math.ceil(milliseconds / 1000))
@@ -60,14 +65,14 @@ export class ClockService {
     if (!Number.isFinite(milliseconds) || milliseconds < 0) throw new Error('Informe uma duração válida.')
     this.stopTicker()
     const keepTask = this.state.mode === mode
-    this.state = { status: milliseconds > 0 ? 'ready' : 'idle', mode, durationMs: milliseconds, remainingMs: milliseconds, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, taskId: keepTask ? this.state.taskId : null, taskTitle: keepTask ? this.state.taskTitle : null }
+    this.state = { status: milliseconds > 0 ? 'ready' : 'idle', mode, durationMs: milliseconds, remainingMs: milliseconds, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, runId: null, taskId: keepTask ? this.state.taskId : null, taskTitle: keepTask ? this.state.taskTitle : null }
     this.commit()
   }
 
   start() {
     if (!['ready', 'paused'].includes(this.state.status) || this.state.remainingMs <= 0) return
     const now = this.now()
-    this.state = { ...this.state, status: 'running', startedAt: this.state.startedAt ?? now, endAt: now + this.state.remainingMs, finishedAt: null, notificationSent: false }
+    this.state = { ...this.state, status: 'running', startedAt: this.state.startedAt ?? now, endAt: now + this.state.remainingMs, finishedAt: null, notificationSent: false, runId: this.state.status === 'paused' && this.state.runId ? this.state.runId : createRunId(now) }
     this.commit()
     this.startTicker()
   }
@@ -85,7 +90,7 @@ export class ClockService {
   restoreConfiguredDuration() {
     if (this.state.durationMs <= 0) { this.reset(); return }
     this.stopTicker()
-    this.state = { ...this.state, status: 'ready', remainingMs: this.state.durationMs, startedAt: null, endAt: null, finishedAt: null, notificationSent: false }
+    this.state = { ...this.state, status: 'ready', remainingMs: this.state.durationMs, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, runId: null }
     this.commit()
   }
   stopAlarm() { if (this.state.status === 'alarming') this.restoreConfiguredDuration() }
@@ -138,8 +143,11 @@ export class ClockService {
       if (!raw) return { ...EMPTY_STATE }
       const parsed = JSON.parse(raw) as ClockState
       if (!['idle', 'ready', 'running', 'paused', 'alarming'].includes(parsed.status) || !Number.isFinite(parsed.remainingMs)) return { ...EMPTY_STATE }
-      if (parsed.status === 'running' && parsed.endAt !== null && parsed.endAt <= this.now()) return { ...parsed, status: 'alarming', remainingMs: 0, endAt: null, finishedAt: this.now(), notificationSent: false }
-      return { ...parsed, mode: parsed.mode === 'pomodoro' ? 'pomodoro' : 'timer', notificationSent: Boolean(parsed.notificationSent), taskId: typeof parsed.taskId === 'string' ? parsed.taskId : null, taskTitle: typeof parsed.taskTitle === 'string' ? parsed.taskTitle : null }
+      const mode: ClockMode = parsed.mode === 'pomodoro' ? 'pomodoro' : 'timer'
+      const legacyRunId = parsed.status === 'running' || parsed.status === 'paused' || parsed.status === 'alarming' ? `legacy-${mode}-${parsed.startedAt ?? 'unknown'}-${parsed.durationMs}` : null
+      const normalized = { ...parsed, mode, notificationSent: Boolean(parsed.notificationSent), runId: typeof parsed.runId === 'string' ? parsed.runId : legacyRunId, taskId: typeof parsed.taskId === 'string' ? parsed.taskId : null, taskTitle: typeof parsed.taskTitle === 'string' ? parsed.taskTitle : null }
+      if (normalized.status === 'running' && normalized.endAt !== null && normalized.endAt <= this.now()) return { ...normalized, status: 'alarming', remainingMs: 0, endAt: null, finishedAt: this.now(), notificationSent: false }
+      return normalized
     } catch { return { ...EMPTY_STATE } }
   }
 }

@@ -1,7 +1,7 @@
-class AudioService {
+export class AudioService {
   private context: AudioContext | null = null
-  private alarmInterval: ReturnType<typeof setInterval> | null = null
-  private alarmTimeout: ReturnType<typeof setTimeout> | null = null
+  private alarmOscillators = new Set<OscillatorNode>()
+  private handledAlarmRunId: string | null = null
   private enabled = true
   private alarmVolume = .6
 
@@ -11,41 +11,50 @@ class AudioService {
     if (!enabled || this.alarmVolume === 0) this.stopAlarm()
   }
 
-  unlock() {
-    const AudioContextClass = window.AudioContext
-    if (!this.context) this.context = new AudioContextClass()
-    if (this.context.state === 'suspended') void this.context.resume()
+  async unlock() {
+    try {
+      const AudioContextClass = window.AudioContext
+      if (!AudioContextClass) return false
+      if (!this.context) this.context = new AudioContextClass()
+      if (this.context.state === 'suspended') await this.context.resume()
+      return this.context.state === 'running'
+    } catch (reason) {
+      if (import.meta.env.DEV) console.warn('Não foi possível preparar o áudio do Hub.', reason)
+      return false
+    }
   }
 
   playCheck(complete = false) {
     if (!this.enabled) return
     try {
-      this.unlock()
-      const frequencies = complete ? [523.25, 659.25, 783.99, 1046.5] : [600, 1200]
-      frequencies.forEach((frequency, index) => this.tone(frequency, index * .1, complete ? 'triangle' : 'sine', .12))
+      void this.unlock().then((ready) => {
+        if (!ready) return
+        const frequencies = complete ? [523.25, 659.25, 783.99, 1046.5] : [600, 1200]
+        frequencies.forEach((frequency, index) => this.tone(frequency, index * .1, complete ? 'triangle' : 'sine', .12))
+      })
     } catch { /* A gravação nunca depende do áudio. */ }
   }
 
-  startAlarm() {
-    if (!this.enabled || this.alarmVolume === 0) return
+  async startAlarm(runId: string) {
+    if (!this.enabled || this.alarmVolume === 0 || this.handledAlarmRunId === runId) return false
+    this.handledAlarmRunId = runId
     try {
-      this.unlock()
-      if (this.alarmInterval) return
-      const pattern = () => [0, .15, .3, .45].forEach((offset) => this.tone(880, offset, 'square', .1, .36 * this.alarmVolume))
-      pattern()
-      this.alarmInterval = setInterval(pattern, 1000)
-      this.alarmTimeout = setTimeout(() => this.stopAlarm(), 60_000)
-    } catch { /* A indicação visual continua disponível. */ }
+      if (!await this.unlock()) return false
+      const notes = [659.25, 783.99, 987.77, 783.99, 987.77]
+      notes.forEach((frequency, index) => this.tone(frequency, index * .22, 'sine', .18, .32 * this.alarmVolume, true))
+      return true
+    } catch (reason) {
+      if (import.meta.env.DEV) console.warn('Não foi possível reproduzir o alerta do temporizador.', reason)
+      return false
+    }
   }
 
   stopAlarm() {
-    if (this.alarmInterval) clearInterval(this.alarmInterval)
-    if (this.alarmTimeout) clearTimeout(this.alarmTimeout)
-    this.alarmInterval = null
-    this.alarmTimeout = null
+    this.alarmOscillators.forEach((oscillator) => { try { oscillator.stop() } catch { /* O nó já pode ter terminado. */ } })
+    this.alarmOscillators.clear()
   }
 
-  private tone(frequency: number, offset: number, type: OscillatorType, duration: number, volume = .14) {
+  private tone(frequency: number, offset: number, type: OscillatorType, duration: number, volume = .14, alarm = false) {
     if (!this.context) return
     const oscillator = this.context.createOscillator()
     const gain = this.context.createGain()
@@ -55,6 +64,7 @@ class AudioService {
     gain.gain.setValueAtTime(volume, start)
     gain.gain.exponentialRampToValueAtTime(.001, start + duration)
     oscillator.connect(gain).connect(this.context.destination)
+    if (alarm) { this.alarmOscillators.add(oscillator); oscillator.onended = () => this.alarmOscillators.delete(oscillator) }
     oscillator.start(start)
     oscillator.stop(start + duration)
   }

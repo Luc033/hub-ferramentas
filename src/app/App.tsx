@@ -6,7 +6,7 @@ import { clockService } from '../services/clock/ClockService'
 import { useClock } from '../services/clock/useClock'
 import { SettingsPanel } from '../components/layout/SettingsPanel'
 import { useSettings } from './providers/SettingsProvider'
-import { notificationsService } from '../services/notifications/notificationsService'
+import { completionAlertsService } from '../services/notifications/completionAlertsService'
 import { pomodoroService } from '../features/pomodoro/pomodoroService'
 import { focusSoundService } from '../services/audio/focusSoundService'
 import { FocusAudioPlayer } from '../components/layout/FocusAudioPlayer'
@@ -27,15 +27,15 @@ export function App() {
     audioService.configure(settings.soundEffects, settings.alarmVolume)
     focusSoundService.setVolume(settings.environmentVolume)
     focusSoundService.setMuted(settings.environmentMuted)
-    if (clock.status === 'alarming') audioService.startAlarm()
-    else audioService.stopAlarm()
+    if (clock.status !== 'alarming') audioService.stopAlarm()
     if (clock.status === 'running' || clock.status === 'paused') document.title = `(${formatDuration(clock.remainingMs)}) ${clock.mode === 'pomodoro' ? 'Pomodoro' : 'Temporizador'}`
     else if (clock.status === 'alarming') document.title = '⏰ ALARME! ⏰'
     else document.title = 'Hub de Ferramentas Pessoais'
-    if (clock.status === 'alarming' && settings.notificationsEnabled && !clock.notificationSent) {
+    if (clock.status === 'alarming') {
       const pomodoroMessage = clock.mode === 'pomodoro' ? pomodoroService.getSnapshot().transitionMessage ?? undefined : undefined
-      notificationsService.notifyFinished(clock.mode, pomodoroMessage)
-      clockService.markNotificationSent()
+      void completionAlertsService.process(clock, settings.notificationsEnabled, pomodoroMessage).then((result) => {
+        if (result.notificationShown && clockService.getSnapshot().runId === clock.runId) clockService.markNotificationSent()
+      })
     }
   }, [clock, settings])
   return <><SettingsPanel /><div className={focusAudio.source ? 'pb-44' : ''}><Outlet /></div><FocusAudioPlayer /></>

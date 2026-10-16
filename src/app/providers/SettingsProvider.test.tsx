@@ -7,10 +7,17 @@ function SettingsHarness() {
   return <button onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}>{settings.theme}</button>
 }
 
+function NotificationHarness() {
+  const { settings } = useSettings()
+  return <span>{settings.notificationsEnabled ? 'ativadas' : 'desativadas'}</span>
+}
+
 beforeEach(() => {
   localStorage.clear()
   document.documentElement.dataset.theme = 'dark'
 })
+
+afterEach(() => vi.unstubAllGlobals())
 
 test('usa dark como padrão e persiste a escolha explícita', async () => {
   render(<SettingsProvider><SettingsHarness /></SettingsProvider>)
@@ -32,4 +39,12 @@ test('aplica preferências importadas imediatamente', async () => {
   act(() => applyStoredSettings({ theme: 'light', soundEffects: false, alarmVolume: 25, environmentVolume: 40, environmentMuted: true, notificationsEnabled: false, pomodoroAutoStart: false, focusMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 20, focusesPerCycle: 3 }))
   await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('light'))
   expect(document.documentElement.dataset.theme).toBe('light')
+})
+
+test('desativa a preferência quando a permissão real foi revogada', async () => {
+  vi.stubGlobal('Notification', class { static permission = 'denied' })
+  localStorage.setItem('hub.settings.v1', JSON.stringify({ notificationsEnabled: true }))
+  render(<SettingsProvider><NotificationHarness /></SettingsProvider>)
+  await waitFor(() => expect(screen.getByText('desativadas')).toBeInTheDocument())
+  expect(JSON.parse(localStorage.getItem('hub.settings.v1') ?? '{}').notificationsEnabled).toBe(false)
 })

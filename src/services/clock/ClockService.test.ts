@@ -57,12 +57,14 @@ test('pausa e retoma a partir do saldo real', () => {
   const clock = new ClockService({ now: () => now, storage: null })
   clock.setDuration(5_000)
   clock.start()
+  const runId = clock.getSnapshot().runId
+  expect(runId).toEqual(expect.any(String))
   now = 2_000
   clock.pause()
   expect(clock.getSnapshot()).toMatchObject({ status: 'paused', remainingMs: 3_000, endAt: null })
   now = 10_000
   clock.start()
-  expect(clock.getSnapshot()).toMatchObject({ startedAt: 0, endAt: 13_000 })
+  expect(clock.getSnapshot()).toMatchObject({ startedAt: 0, endAt: 13_000, runId })
   clock.destroy()
 })
 
@@ -75,7 +77,18 @@ test('encerra o alarme restaurando a última duração configurada', () => {
   clock.sync()
   expect(clock.getSnapshot()).toMatchObject({ status: 'alarming', remainingMs: 0 })
   clock.stopAlarm()
-  expect(clock.getSnapshot()).toMatchObject({ status: 'ready', durationMs: 5_000, remainingMs: 5_000, startedAt: null, endAt: null, finishedAt: null })
+  expect(clock.getSnapshot()).toMatchObject({ status: 'ready', durationMs: 5_000, remainingMs: 5_000, startedAt: null, endAt: null, finishedAt: null, runId: null })
+  clock.destroy()
+})
+
+test('gera um identificador novo para cada execução completa', () => {
+  const clock = new ClockService({ storage: null })
+  clock.setDuration(5_000)
+  clock.start()
+  const firstRunId = clock.getSnapshot().runId
+  clock.restoreConfiguredDuration()
+  clock.start()
+  expect(clock.getSnapshot().runId).not.toBe(firstRunId)
   clock.destroy()
 })
 
@@ -99,6 +112,8 @@ test('persiste o instante de conclusão ao restaurar uma sessão vencida', () =>
   const second = new ClockService({ now: () => 3_000, storage })
   expect(first.getSnapshot().finishedAt).toBe(2_000)
   expect(second.getSnapshot().finishedAt).toBe(2_000)
+  expect(first.getSnapshot().runId).toBe('legacy-pomodoro-0-1000')
+  expect(second.getSnapshot().runId).toBe(first.getSnapshot().runId)
   first.destroy(); second.destroy()
 })
 

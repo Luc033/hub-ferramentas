@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
 import { persistSettings, readStoredSettings, SETTINGS_IMPORTED_EVENT, type Settings } from '../../services/settings/settingsStorage'
+import { notificationsService } from '../../services/notifications/notificationsService'
 
 interface SettingsContextValue {
   settings: Settings
@@ -16,6 +17,14 @@ export function SettingsProvider({ children }: PropsWithChildren) {
     const reloadImportedSettings = () => setSettings(readStoredSettings())
     window.addEventListener(SETTINGS_IMPORTED_EVENT, reloadImportedSettings)
     return () => window.removeEventListener(SETTINGS_IMPORTED_EVENT, reloadImportedSettings)
+  }, [])
+
+  useEffect(() => {
+    const reconcileNotificationPermission = () => setSettings((current) => current.notificationsEnabled && notificationsService.permission() !== 'granted' ? { ...current, notificationsEnabled: false } : current)
+    reconcileNotificationPermission()
+    window.addEventListener('focus', reconcileNotificationPermission)
+    document.addEventListener('visibilitychange', reconcileNotificationPermission)
+    return () => { window.removeEventListener('focus', reconcileNotificationPermission); document.removeEventListener('visibilitychange', reconcileNotificationPermission) }
   }, [])
 
   useEffect(() => {
