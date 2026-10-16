@@ -1,10 +1,11 @@
 export const HOME_TITLE = 'Hub | Ferramentas Pessoais'
 export const HUB_FAVICON = '/hub-logo.svg?v=1'
 
-export function faviconForPath(pathname: string, habitsFavicon: string, pomodoroFavicon: string, timerFavicon: string) {
+export function faviconForPath(pathname: string, habitsFavicon: string, pomodoroFavicon: string, timerFavicon: string, kanbanFavicon: string) {
   if (pathname === '/habits') return habitsFavicon
   if (pathname === '/pomodoro') return pomodoroFavicon
   if (pathname === '/timer') return timerFavicon
+  if (pathname === '/tasks') return kanbanFavicon
   return HUB_FAVICON
 }
 

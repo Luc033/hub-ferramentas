@@ -8,6 +8,7 @@ import { tasksRepository } from '../../services/db/tasksRepository'
 import type { Task, TaskStatus } from './types'
 import { useNavigate } from 'react-router'
 import { clockService, hasConfiguredClockSession } from '../../services/clock/ClockService'
+import kanbanLogo from '../../assets/logo-kanban.webp'
 
 const columns: { status: TaskStatus; title: string; accent: string }[] = [
   { status: 'todo', title: 'A Fazer', accent: 'text-slate-300' },
@@ -102,8 +103,8 @@ export default function TasksPage() {
   }
 
   return <PageShell>
-    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-400"><ListTodo size={17} />Kanban</span>} />
-    <header className="app-card mb-6 p-6"><h1 className="flex items-center gap-3 text-2xl font-bold text-white md:text-3xl"><ListTodo className="text-amber-400" />Quadro de Tarefas</h1><p className="mt-2 text-sm text-slate-400">Organize o fluxo entre A Fazer, Fazendo e Concluído.</p></header>
+    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-400"><img src={kanbanLogo} alt="" className="h-6 w-6 object-contain" />Kanban</span>} />
+    <header className="app-card mb-6 p-6"><h1 className="flex items-center gap-3 text-2xl font-bold text-white md:text-3xl"><img src={kanbanLogo} alt="" className="h-9 w-9 object-contain" />Quadro de Tarefas</h1><p className="mt-2 text-sm text-slate-400">Organize o fluxo entre A Fazer, Fazendo e Concluído.</p></header>
     {error && <p role="alert" className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
     {notice && <p role="status" className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">{notice}</p>}
     {enabled === false ? <section className="app-card mx-auto max-w-2xl p-8 text-center"><Save className="mx-auto mb-4 text-amber-400" size={36} /><h2 className="mb-2 text-xl font-bold text-white">Habilitar armazenamento do Kanban</h2><p className="mb-6 text-sm leading-relaxed text-slate-400">Antes de criar a store `tasks`, o Hub baixa um backup de todas as stores atuais. Hábitos e marcações permanecem intactos.</p><Button onClick={() => { void enable() }}><Save size={17} />Backup e habilitar Kanban</Button></section> : enabled ? <>

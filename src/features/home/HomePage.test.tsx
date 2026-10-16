@@ -44,3 +44,10 @@ test('cartão de Temporizador usa o logotipo de imagem', () => {
   expect(screen.getByRole('heading', { name: 'Temporizador' })).toBeInTheDocument()
   expect(view.container.querySelector('img[src*="logo-timer"]')).toBeInTheDocument()
 })
+
+test('cartão de Kanban usa o logotipo de imagem', () => {
+  const tool = toolRegistry.find((item) => item.id === 'tasks')!
+  const view = render(<SettingsProvider><MemoryRouter><ToolCard tool={tool} habitSummary={null} tasksSummary={null} notesSummary={null} onRetry={vi.fn()} /></MemoryRouter></SettingsProvider>)
+  expect(screen.getByRole('heading', { name: 'Kanban' })).toBeInTheDocument()
+  expect(view.container.querySelector('img[src*="logo-kanban"]')).toBeInTheDocument()
+})
