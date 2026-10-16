@@ -62,7 +62,28 @@ test('pausa e retoma a partir do saldo real', () => {
   expect(clock.getSnapshot()).toMatchObject({ status: 'paused', remainingMs: 3_000, endAt: null })
   now = 10_000
   clock.start()
-  expect(clock.getSnapshot().endAt).toBe(13_000)
+  expect(clock.getSnapshot()).toMatchObject({ startedAt: 0, endAt: 13_000 })
+  clock.destroy()
+})
+
+test('encerra o alarme restaurando a última duração configurada', () => {
+  let now = 0
+  const clock = new ClockService({ now: () => now, storage: null })
+  clock.setDuration(5_000)
+  clock.start()
+  now = 5_000
+  clock.sync()
+  expect(clock.getSnapshot()).toMatchObject({ status: 'alarming', remainingMs: 0 })
+  clock.stopAlarm()
+  expect(clock.getSnapshot()).toMatchObject({ status: 'ready', durationMs: 5_000, remainingMs: 5_000, startedAt: null, endAt: null, finishedAt: null })
+  clock.destroy()
+})
+
+test('aceita duração zerada durante a edição e impede o início', () => {
+  const clock = new ClockService({ storage: null })
+  clock.configureDuration(0)
+  clock.start()
+  expect(clock.getSnapshot()).toMatchObject({ status: 'idle', durationMs: 0, remainingMs: 0 })
   clock.destroy()
 })
 

@@ -1,61 +1,129 @@
-import { BellOff, Check, Clock3, Pause, Play, RotateCcw } from 'lucide-react'
-import { useState } from 'react'
+import { Bell, BellOff, ChevronDown, ChevronUp, CircleGauge, Clock3, Flag, Focus, Pause, Play, RotateCcw, Square, Target } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { useSettings } from '../../app/providers/SettingsProvider'
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
 import { Button } from '../../components/ui/Button'
 import { audioService } from '../../services/audio/audioService'
 import { clockService, formatDuration, shouldConfirmClockReplacement } from '../../services/clock/ClockService'
 import { useClock } from '../../services/clock/useClock'
+import { notificationsService } from '../../services/notifications/notificationsService'
 
 const presets = [1, 5, 15, 30, 60]
+const circumference = 2 * Math.PI * 46
+type TimeUnit = 'hours' | 'minutes' | 'seconds'
 
-function TimeInput({ label, value, max, onChange }: { label: string; value: string; max: number; onChange: (value: string) => void }) {
-  return <label className="flex flex-col items-center gap-1"><input aria-label={label} type="number" min="0" max={max} value={value} placeholder="00" onChange={(event) => onChange(event.target.value)} className="w-16 rounded-xl border border-slate-700 bg-slate-950 px-2 py-3 text-center font-mono text-xl text-white focus:border-transparent md:w-20" /><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span></label>
+function splitDuration(milliseconds: number) {
+  const totalSeconds = Math.max(0, Math.round(milliseconds / 1000))
+  return { hours: Math.min(99, Math.floor(totalSeconds / 3600)), minutes: Math.floor((totalSeconds % 3600) / 60), seconds: totalSeconds % 60 }
+}
+
+function joinDuration(values: Record<TimeUnit, number>) { return (values.hours * 3600 + values.minutes * 60 + values.seconds) * 1000 }
+function formatClockTime(timestamp: number | null) { return timestamp === null ? '—' : new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
+function formatTotal(milliseconds: number) {
+  const minutes = milliseconds / 60_000
+  if (Number.isInteger(minutes)) return minutes === 1 ? '1 minuto' : minutes === 60 ? '1 hora' : `${minutes} minutos`
+  return formatDuration(milliseconds)
+}
+
+function TimeControl({ label, value, max, disabled, onChange }: { label: string; value: number; max: number; disabled: boolean; onChange: (value: number) => void }) {
+  const setValue = (next: number) => onChange(Math.min(max, Math.max(0, next)))
+  return <div className="flex min-w-0 flex-1 flex-col items-center">
+    <div className="flex w-full max-w-24 flex-col items-center rounded-2xl border border-slate-700/90 bg-slate-950/45 py-1 shadow-inner sm:max-w-28 sm:py-2">
+      <button type="button" aria-label={`Aumentar ${label}`} disabled={disabled || value >= max} onClick={() => setValue(value + 1)} className="flex min-h-9 w-full items-center justify-center text-cyan-400 transition-colors hover:text-cyan-200 disabled:opacity-30"><ChevronUp size={25} /></button>
+      <input aria-label={label} inputMode="numeric" maxLength={2} disabled={disabled} value={String(value).padStart(2, '0')} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setValue(Number(event.target.value.replace(/\D/g, '').slice(-2)) || 0)} className="timer-digits w-full border-0 bg-transparent px-0 text-center font-mono text-4xl font-bold text-white outline-none sm:text-5xl" />
+      <button type="button" aria-label={`Diminuir ${label}`} disabled={disabled || value <= 0} onClick={() => setValue(value - 1)} className="flex min-h-9 w-full items-center justify-center text-cyan-400 transition-colors hover:text-cyan-200 disabled:opacity-30"><ChevronDown size={25} /></button>
+    </div>
+    <span className="mt-2 text-xs font-semibold uppercase tracking-wider text-slate-400 sm:text-sm">{label}</span>
+  </div>
+}
+
+function InfoCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return <div className="flex min-h-28 items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/55 p-5 shadow-lg backdrop-blur">
+    <span className="shrink-0 text-slate-300">{icon}</span><span className="min-w-0"><span className="block text-sm text-slate-400">{label}</span><strong className="mt-1 block truncate text-lg font-semibold text-white">{value}</strong></span>
+  </div>
+}
+
+function Toggle({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
+  return <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={onClick} className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors ${checked ? 'border-cyan-300 bg-cyan-500' : 'border-slate-500 bg-slate-800'}`}><span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-[left] ${checked ? 'left-7' : 'left-1'}`} /></button>
 }
 
 export default function TimerPage() {
   const state = useClock()
-  const [hours, setHours] = useState('')
-  const [minutes, setMinutes] = useState('')
-  const [seconds, setSeconds] = useState('')
-  const [error, setError] = useState('')
+  const { settings, updateSettings } = useSettings()
+  const [focusMode, setFocusMode] = useState(false)
+  const [notificationMessage, setNotificationMessage] = useState('')
   const ownsClock = state.mode === 'timer'
   const running = ownsClock && state.status === 'running'
-  const alarming = ownsClock && state.status === 'alarming'
-  const remaining = ownsClock ? state.remainingMs : 0
+  const paused = ownsClock && state.status === 'paused'
+  const finished = ownsClock && state.status === 'alarming'
+  const available = !ownsClock || state.status === 'idle' || state.status === 'ready'
+  const displayMs = ownsClock ? state.remainingMs : 0
+  const units = splitDuration(displayMs)
+  const selectedPreset = available && ownsClock && presets.find((preset) => preset * 60_000 === state.durationMs)
+  const elapsed = ownsClock ? Math.max(0, state.durationMs - state.remainingMs) : 0
+  const progress = finished ? 1 : state.durationMs > 0 ? Math.min(1, elapsed / state.durationMs) : 0
+  const status = finished ? 'Encerrado' : running ? 'Em andamento' : paused ? 'Pausado' : 'Disponível'
+  const statusColor = finished ? 'text-red-400' : paused ? 'text-amber-400' : running ? 'text-cyan-300' : 'text-slate-400'
+  const progressColor = finished ? 'text-red-500' : 'text-cyan-400'
+  const canRestore = ownsClock && ['running', 'paused', 'alarming'].includes(state.status)
 
   const replaceDuration = (milliseconds: number) => {
     if (shouldConfirmClockReplacement(state, 'timer') && !window.confirm(`${state.mode === 'pomodoro' ? 'O Pomodoro' : 'O temporizador'} possui uma sessão ${state.status === 'paused' ? 'pausada' : 'ativa'}. Deseja substituí-la?`)) return
-    clockService.setDuration(milliseconds)
-    setError('')
+    clockService.configureDuration(milliseconds, 'timer')
   }
-  const applyCustom = () => {
-    const values = [hours, minutes, seconds].map((value) => value === '' ? 0 : Number(value))
-    if (values.some((value) => !Number.isInteger(value) || value < 0) || values[0] > 99 || values[1] > 59 || values[2] > 59) { setError('Use 0–99 horas e 0–59 minutos/segundos.'); return }
-    const total = (values[0] * 3600 + values[1] * 60 + values[2]) * 1000
-    if (!total) { setError('Informe um tempo maior que zero.'); return }
-    replaceDuration(total)
+  const changeUnit = (unit: TimeUnit, value: number) => replaceDuration(joinDuration({ ...units, [unit]: value }))
+  const startOrToggle = () => {
+    if (finished) { clockService.stopAlarm(); return }
+    if (running) { clockService.pause(); return }
+    audioService.unlock(); clockService.start()
   }
-  const toggle = () => {
-    if (running) clockService.pause()
-    else { audioService.unlock(); clockService.start() }
+  const toggleNotifications = async () => {
+    setNotificationMessage('')
+    if (settings.notificationsEnabled) { updateSettings({ notificationsEnabled: false }); return }
+    const permission = notificationsService.permission() === 'granted' ? 'granted' : await notificationsService.requestPermission()
+    if (permission === 'granted') updateSettings({ notificationsEnabled: true })
+    else setNotificationMessage(permission === 'denied' ? 'As notificações estão bloqueadas nas configurações do navegador.' : 'Este navegador não oferece notificações.')
   }
 
-  return <PageShell wide={false}>
-    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-400"><Clock3 size={17} />Temporizador</span>} />
-    <section className="app-card relative flex min-h-[620px] flex-col items-center justify-center overflow-hidden p-5 sm:p-8 md:p-12">
-      <div aria-hidden className={`pointer-events-none absolute left-1/2 top-1/2 h-[120%] w-[120%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[100px] ${alarming ? 'animate-pulse bg-red-500/20' : running ? 'bg-amber-500/10' : 'bg-cyan-500/5'}`} />
-      <div aria-live="polite" aria-label={`Tempo restante: ${formatDuration(remaining)}`} className={`timer-digits z-10 mb-10 text-center font-mono text-[3.25rem] font-bold leading-none tracking-tight drop-shadow-[0_0_15px_rgba(34,211,238,0.2)] sm:text-[5.5rem] md:text-[7.5rem] ${alarming ? 'text-red-500' : 'text-white'}`}>{formatDuration(remaining)}</div>
-      {ownsClock && state.taskTitle && <div className="z-10 -mt-6 mb-8 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300"><span className="max-w-xs truncate">{state.taskTitle}</span><button aria-label="Desvincular tarefa" onClick={() => clockService.clearTask()} className="font-bold">×</button></div>}
-      {ownsClock && state.taskTitle && state.status === 'idle' && <p className="z-10 -mt-5 mb-7 text-center text-sm text-slate-400">Escolha um preset ou informe a duração para esta tarefa.</p>}
-      {alarming ? <Button variant="danger" className="z-10 w-full max-w-sm animate-pulse py-5 text-lg" onClick={() => clockService.stopAlarm()}><BellOff />ENCERRAR ALARME</Button> : <div className="z-10 flex w-full max-w-2xl flex-col gap-8">
-        <div className="grid grid-cols-5 gap-2 md:gap-4">{presets.map((preset) => <button key={preset} onClick={() => replaceDuration(preset * 60_000)} className="min-h-11 rounded-xl border border-slate-700 bg-slate-900 py-3 font-semibold text-slate-300 transition-colors hover:border-cyan-500 hover:bg-slate-700 hover:text-cyan-400">{preset}m</button>)}</div>
-        <div className="flex flex-col items-center justify-between gap-5 rounded-2xl border border-slate-700/50 bg-slate-900/50 p-4 md:flex-row">
-          <div className="flex items-center gap-2"><TimeInput label="Hrs" value={hours} max={99} onChange={setHours} /><span aria-hidden className="pb-5 text-2xl text-slate-600">:</span><TimeInput label="Min" value={minutes} max={59} onChange={setMinutes} /><span aria-hidden className="pb-5 text-2xl text-slate-600">:</span><TimeInput label="Seg" value={seconds} max={59} onChange={setSeconds} /><button aria-label="Aplicar tempo personalizado" title="Aplicar tempo personalizado" onClick={applyCustom} className="ml-1 rounded-xl border border-slate-700 bg-slate-800 p-3 text-cyan-400 hover:border-cyan-500 hover:bg-slate-700"><Check /></button></div>
-          <div className="flex w-full gap-3 md:w-auto"><Button variant="secondary" className="flex-1" onClick={() => { if (state.mode !== 'timer' && state.status !== 'idle' && !window.confirm('Encerrar a sessão Pomodoro ativa?')) return; clockService.reset() }}><RotateCcw size={17} />ZERAR</Button><Button variant={running ? 'secondary' : 'timer'} className="min-w-32 flex-1" disabled={!running && !(ownsClock && ['ready', 'paused'].includes(state.status))} onClick={toggle}>{running ? <><Pause size={18} />PAUSAR</> : <><Play size={18} />{ownsClock && state.status === 'paused' ? 'RETOMAR' : 'INICIAR'}</>}</Button></div>
+  return <PageShell wide>
+    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-400"><Clock3 size={20} />Temporizador</span>} />
+    <section className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/35 px-4 py-7 shadow-2xl sm:px-7 lg:px-10">
+      <div aria-hidden className={`pointer-events-none absolute left-1/2 top-1/3 h-96 w-96 -translate-x-1/2 rounded-full blur-[120px] ${finished ? 'bg-red-500/15' : 'bg-cyan-500/10'}`} />
+      <div className={`relative grid items-center gap-5 ${focusMode ? 'justify-center' : 'xl:grid-cols-[minmax(12rem,1fr)_minmax(27rem,31rem)_minmax(12rem,1fr)]'}`}>
+        {!focusMode && <div className="order-2 grid gap-4 sm:grid-cols-2 xl:order-1 xl:grid-cols-1"><InfoCard icon={<Target size={38} />} label="Duração total" value={ownsClock && state.durationMs ? formatTotal(state.durationMs) : '—'} /><InfoCard icon={<Clock3 size={38} />} label="Início" value={ownsClock ? formatClockTime(state.startedAt) : '—'} /></div>}
+        <div className="order-1 mx-auto flex w-full max-w-[31rem] flex-col items-center xl:order-2">
+          <div className="relative aspect-square w-full max-w-[29rem]">
+            <svg aria-hidden className={`absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_0_12px_currentColor] ${progressColor}`} viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeOpacity=".13" strokeWidth="3" />
+              <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)} className="transition-[stroke-dashoffset,stroke] duration-300" />
+            </svg>
+            <div className="absolute inset-[7%] flex flex-col items-center justify-center rounded-full border border-slate-800/80 bg-slate-950/55 px-[7%] shadow-[inset_0_0_60px_rgba(8,145,178,.08)] backdrop-blur-sm">
+              <div role="status" className={`mb-5 flex items-center gap-2 text-sm font-semibold sm:text-base ${statusColor}`}><span className={`h-2.5 w-2.5 rounded-full bg-current ${running ? 'shadow-[0_0_12px_currentColor]' : ''}`} />{status}</div>
+              <div aria-live="polite" aria-label={`Tempo restante: ${formatDuration(displayMs)}`} className="flex w-full items-start justify-center gap-2 sm:gap-3">
+                <TimeControl label="HRS" value={units.hours} max={99} disabled={!available} onChange={(value) => changeUnit('hours', value)} />
+                <TimeControl label="MIN" value={units.minutes} max={59} disabled={!available} onChange={(value) => changeUnit('minutes', value)} />
+                <TimeControl label="SEG" value={units.seconds} max={59} disabled={!available} onChange={(value) => changeUnit('seconds', value)} />
+              </div>
+            </div>
+          </div>
+          {ownsClock && state.taskTitle && <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300"><span className="truncate">{state.taskTitle}</span><button aria-label="Desvincular tarefa" onClick={() => clockService.clearTask()} className="font-bold">×</button></div>}
+          <div className="mt-5 grid w-full grid-cols-2 gap-3 sm:gap-5">
+            <Button variant="secondary" disabled={!canRestore} onClick={() => clockService.restoreConfiguredDuration()} className="py-4 text-base"><RotateCcw size={21} />Reiniciar</Button>
+            <Button variant={finished ? 'danger' : 'timer'} disabled={available && displayMs <= 0} onClick={startOrToggle} className="py-4 text-base">{finished ? <><Square size={19} />Encerrar</> : running ? <><Pause size={21} />Pausar</> : <><Play size={21} />{paused ? 'Continuar' : 'Iniciar'}</>}</Button>
+          </div>
         </div>
-        {error && <p role="alert" className="-mt-5 text-center text-sm font-medium text-red-400">{error}</p>}
-        <p className="text-center text-xs text-slate-500">A contagem usa o horário absoluto do dispositivo e continua correta ao trocar de rota ou voltar à aba.</p>
-      </div>}
+        {!focusMode && <div className="order-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-1"><InfoCard icon={<CircleGauge size={38} />} label="Tempo decorrido" value={ownsClock && state.startedAt !== null ? formatDuration(elapsed) : '—'} /><InfoCard icon={<Flag size={38} />} label="Término previsto" value={running ? formatClockTime(state.endAt) : '—'} /></div>}
+      </div>
+
+      {!focusMode && <>
+        <div className="relative mt-7 grid grid-cols-2 gap-3 sm:grid-cols-5">{presets.map((preset) => <button key={preset} disabled={!available} onClick={() => replaceDuration(preset * 60_000)} className={`relative min-h-12 rounded-xl border px-3 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${selectedPreset === preset ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300 shadow-[0_0_18px_rgba(34,211,238,.12)]' : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-cyan-500/60 hover:text-cyan-300'}`}>{preset} min{selectedPreset === preset && <span aria-hidden className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-300">✓</span>}</button>)}</div>
+        <div className="relative mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="flex min-h-24 items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/55 p-5"><Bell size={29} className="shrink-0 text-slate-300" /><div className="min-w-0 flex-1"><strong className="block text-white">Notificação</strong><span className="mt-1 block text-sm text-slate-400">Avise quando o tempo terminar.</span></div><Toggle checked={settings.notificationsEnabled} label="Ativar notificações" onClick={() => { void toggleNotifications() }} /></div>
+          <div className="flex min-h-24 items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/55 p-5"><Focus size={29} className="shrink-0 text-slate-300" /><div className="min-w-0 flex-1"><strong className="block text-white">Modo foco</strong><span className="mt-1 block text-sm text-slate-400">Oculta informações secundárias.</span></div><Toggle checked={focusMode} label="Ativar modo foco" onClick={() => setFocusMode(true)} /></div>
+        </div>
+        {notificationMessage && <p role="alert" className="relative mt-3 flex items-center justify-center gap-2 text-center text-sm text-amber-300"><BellOff size={16} />{notificationMessage}</p>}
+      </>}
+      {focusMode && <button onClick={() => setFocusMode(false)} className="relative mx-auto mt-6 flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 text-sm font-semibold text-slate-300 hover:text-white"><Focus size={17} />Sair do modo foco</button>}
     </section>
   </PageShell>
 }

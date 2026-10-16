@@ -53,15 +53,21 @@ export class ClockService {
 
   setDuration(milliseconds: number, mode: ClockMode = 'timer') {
     if (!Number.isFinite(milliseconds) || milliseconds <= 0) throw new Error('Informe um tempo maior que zero.')
+    this.configureDuration(milliseconds, mode)
+  }
+
+  configureDuration(milliseconds: number, mode: ClockMode = 'timer') {
+    if (!Number.isFinite(milliseconds) || milliseconds < 0) throw new Error('Informe uma duração válida.')
+    this.stopTicker()
     const keepTask = this.state.mode === mode
-    this.state = { status: 'ready', mode, durationMs: milliseconds, remainingMs: milliseconds, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, taskId: keepTask ? this.state.taskId : null, taskTitle: keepTask ? this.state.taskTitle : null }
+    this.state = { status: milliseconds > 0 ? 'ready' : 'idle', mode, durationMs: milliseconds, remainingMs: milliseconds, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, taskId: keepTask ? this.state.taskId : null, taskTitle: keepTask ? this.state.taskTitle : null }
     this.commit()
   }
 
   start() {
     if (!['ready', 'paused'].includes(this.state.status) || this.state.remainingMs <= 0) return
     const now = this.now()
-    this.state = { ...this.state, status: 'running', startedAt: now, endAt: now + this.state.remainingMs, finishedAt: null, notificationSent: false }
+    this.state = { ...this.state, status: 'running', startedAt: this.state.startedAt ?? now, endAt: now + this.state.remainingMs, finishedAt: null, notificationSent: false }
     this.commit()
     this.startTicker()
   }
@@ -76,7 +82,13 @@ export class ClockService {
   }
 
   reset() { this.stopTicker(); this.state = { ...EMPTY_STATE }; this.commit() }
-  stopAlarm() { if (this.state.status === 'alarming') this.reset() }
+  restoreConfiguredDuration() {
+    if (this.state.durationMs <= 0) { this.reset(); return }
+    this.stopTicker()
+    this.state = { ...this.state, status: 'ready', remainingMs: this.state.durationMs, startedAt: null, endAt: null, finishedAt: null, notificationSent: false }
+    this.commit()
+  }
+  stopAlarm() { if (this.state.status === 'alarming') this.restoreConfiguredDuration() }
   associateTask(mode: ClockMode, taskId: string, taskTitle: string) {
     this.stopTicker()
     this.state = { ...EMPTY_STATE, mode, taskId, taskTitle }

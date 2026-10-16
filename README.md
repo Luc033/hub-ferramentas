@@ -29,7 +29,7 @@ As preferências de interface e a sessão ativa do Timer usam chaves locais vers
 ## Ferramentas disponíveis
 
 - Rastreador de Hábitos, incluindo marcações datadas após backup/migração, navegação semanal e atualização automática na mudança do dia local.
-- Timer com relógio absoluto, persistência, confirmação antes de substituir sessões de outra ferramenta ou sessões em andamento e associação opcional sincronizada com a tarefa.
+- Timer com relógio absoluto, display circular editável, progresso visual, presets, cards de execução, modo foco, persistência e restauração da última duração após o encerramento.
 - Pomodoro automático com fases 25/5/15 e quantidade de focos por ciclo configuráveis, inclusive com recuperação idempotente de fases vencidas após recarga.
 - Kanban A Fazer/Fazendo/Concluído, com destino de ordenação, suporte a toque, controles acessíveis, persistência transacional e contagem de focos por tarefa vinculada.
 - Anotações em texto simples com salvamento automático serializado, flush ao sair, recuperação de falhas e criação de nós no mapa mental.

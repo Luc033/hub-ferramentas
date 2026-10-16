@@ -63,10 +63,15 @@ g:has(> .mind-map-connection-hit:hover) > .mind-map-transverse { filter: drop-sh
 .topic-action:disabled { opacity: .35; }
 
 :root[data-theme='light'] .bg-slate-950,
+:root[data-theme='light'] .bg-slate-950\/35,
+:root[data-theme='light'] .bg-slate-950\/45,
+:root[data-theme='light'] .bg-slate-950\/55,
 :root[data-theme='light'] .bg-slate-950\/70,
 :root[data-theme='light'] .bg-slate-950\/80 { background-color: rgb(226 232 240 / .88) !important; }
 :root[data-theme='light'] .bg-slate-900,
 :root[data-theme='light'] .bg-slate-900\/50,
+:root[data-theme='light'] .bg-slate-900\/55,
+:root[data-theme='light'] .bg-slate-900\/60,
 :root[data-theme='light'] .bg-slate-900\/70 { background-color: rgb(241 245 249 / .92) !important; }
 :root[data-theme='light'] .bg-slate-800,
 :root[data-theme='light'] .bg-slate-800\/50,
