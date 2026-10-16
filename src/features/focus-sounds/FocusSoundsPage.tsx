@@ -1,4 +1,4 @@
-import { CloudRain, ExternalLink, Headphones, ListMusic, Play, Radio, Trash2, Waves, Wind } from 'lucide-react'
+import { CloudRain, ExternalLink, ListMusic, Play, Radio, Trash2, Waves, Wind } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
 import { Button } from '../../components/ui/Button'
@@ -7,6 +7,7 @@ import { useFocusSound } from '../../services/audio/useFocusSound'
 import { focusPlaylistsRepository, loadFocusPlaylistCatalog } from '../../services/db/focusPlaylistsRepository'
 import type { FocusPlaylist, PlaylistCategory } from './types'
 import { useOnlineStatus } from '../../lib/useOnlineStatus'
+import soundsLogo from '../../assets/logo-musica.webp'
 
 const sounds: { id: FocusSound; title: string; description: string; icon: typeof Wind }[] = [
   { id: 'white', title: 'Ruído Branco', description: 'Ruído uniforme para mascarar distrações.', icon: Wind },
@@ -52,8 +53,8 @@ export default function FocusSoundsPage() {
     catch (reason) { setRetryRemoval(playlist); setError(reason instanceof Error ? reason.message : 'Não foi possível remover a playlist.') }
   }
 
-  return <PageShell><BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-400"><Headphones size={17} />Sons de Foco</span>} />
-    <header className="app-card mb-8 p-6"><h1 className="flex items-center gap-3 text-2xl font-bold text-white md:text-3xl"><Headphones className="text-blue-400" />Sons de Foco</h1><p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">Combine sons gerados no navegador, rádio ao vivo e playlists oficiais incorporadas. Uma única fonte toca por vez e continua durante a navegação interna.</p></header>
+  return <PageShell><BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-400"><img src={soundsLogo} alt="" className="h-6 w-6 object-contain" />Sons de Foco</span>} />
+    <header className="app-card mb-8 p-6"><h1 className="flex items-center gap-3 text-2xl font-bold text-white md:text-3xl"><img src={soundsLogo} alt="" className="h-9 w-9 object-contain" />Sons de Foco</h1><p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">Combine sons gerados no navegador, rádio ao vivo e playlists oficiais incorporadas. Uma única fonte toca por vez e continua durante a navegação interna.</p></header>
     {!online && <div role="status" className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">Sem conexão. Os sons ambientes continuam disponíveis; rádio, SoundCloud e validação de novas playlists exigem internet.</div>}
     {(error || state.error) && <div role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200"><p>{error || state.error}</p><button disabled={!retryRemoval && Boolean(state.error) && !online && state.source?.kind !== 'ambient'} onClick={() => { if (retryRemoval) void removePlaylist(retryRemoval, false); else { setError(''); if (state.error) focusSoundService.retry() } }} className="mt-2 font-semibold underline disabled:cursor-not-allowed disabled:opacity-50">{retryRemoval || state.error ? 'Tentar novamente' : 'Fechar'}</button></div>}
 

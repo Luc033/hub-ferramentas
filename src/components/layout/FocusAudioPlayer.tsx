@@ -1,9 +1,10 @@
-import { Headphones, Pause, Play, RefreshCw, SkipBack, SkipForward, Square, Volume2, VolumeX } from 'lucide-react'
+import { Pause, Play, RefreshCw, SkipBack, SkipForward, Square, Volume2, VolumeX } from 'lucide-react'
 import { useSettings } from '../../app/providers/SettingsProvider'
 import { focusSoundService } from '../../services/audio/focusSoundService'
 import { SoundCloudWidgetHost } from '../../services/audio/SoundCloudWidgetHost'
 import { useFocusSound } from '../../services/audio/useFocusSound'
 import { useOnlineStatus } from '../../lib/useOnlineStatus'
+import soundsLogo from '../../assets/logo-musica.webp'
 
 export function FocusAudioPlayer() {
   const state = useFocusSound(); const { settings, updateSettings } = useSettings()
@@ -13,7 +14,7 @@ export function FocusAudioPlayer() {
   const soundCloud = source.kind === 'soundcloud'
   return <aside aria-label="Miniplayer de Sons de Foco" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-700 bg-slate-900/95 shadow-2xl backdrop-blur">
     <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 md:px-8">
-      <Headphones className="shrink-0 text-blue-400" size={22} />
+      <img src={soundsLogo} alt="" className="h-7 w-7 shrink-0 object-contain" />
       <div className="min-w-32 flex-1"><strong className="block truncate text-sm text-white">{source.title}</strong><span className="text-xs text-slate-400">{source.provider}{source.kind === 'soundcloud' && ` · ${source.author}`}</span></div>
       {soundCloud && <><button disabled={!state.controllerReady} aria-label="Faixa anterior" title="Faixa anterior" onClick={() => focusSoundService.skip('previous')} className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"><SkipBack size={18} /></button><button disabled={!state.controllerReady} aria-label="Próxima faixa" title="Próxima faixa" onClick={() => focusSoundService.skip('next')} className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"><SkipForward size={18} /></button></>}
       {state.status === 'error' ? <button onClick={() => focusSoundService.retry()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-blue-600 px-3 text-sm font-semibold text-white"><RefreshCw size={16} />Tentar novamente</button> : state.status === 'playing' || state.status === 'loading' ? <button aria-label="Pausar" onClick={() => { void focusSoundService.pause() }} className="rounded-xl bg-blue-600 p-2.5 text-white"><Pause size={18} /></button> : <button aria-label="Reproduzir" onClick={() => { void focusSoundService.resume() }} className="rounded-xl bg-blue-600 p-2.5 text-white"><Play size={18} /></button>}

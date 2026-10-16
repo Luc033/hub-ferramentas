@@ -58,3 +58,10 @@ test('cartão de Anotações e Mapa Mental usa o logotipo de imagem', () => {
   expect(screen.getByRole('heading', { name: 'Anotações / Mapa Mental' })).toBeInTheDocument()
   expect(view.container.querySelector('img[src*="logo-mapa"]')).toBeInTheDocument()
 })
+
+test('cartão de Sons de Foco usa o logotipo de imagem', () => {
+  const tool = toolRegistry.find((item) => item.id === 'sounds')!
+  const view = render(<SettingsProvider><MemoryRouter><ToolCard tool={tool} habitSummary={null} tasksSummary={null} notesSummary={null} onRetry={vi.fn()} /></MemoryRouter></SettingsProvider>)
+  expect(screen.getByRole('heading', { name: 'Sons de Foco' })).toBeInTheDocument()
+  expect(view.container.querySelector('img[src*="logo-musica"]')).toBeInTheDocument()
+})
