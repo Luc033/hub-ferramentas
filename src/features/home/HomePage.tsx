@@ -1,4 +1,4 @@
-import { ArrowRight, Layers3, LockKeyhole, Pause, Play, RotateCcw, Square } from 'lucide-react'
+import { ArrowRight, LockKeyhole, Pause, Play, RotateCcw, Square } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { PageShell } from '../../components/layout/PageShell'
@@ -19,6 +19,7 @@ import { focusSoundService } from '../../services/audio/focusSoundService'
 import { useSettings } from '../../app/providers/SettingsProvider'
 import { countTasksCompletedToday, describeLastNoteUpdate } from './widgetSummaries'
 import { useOnlineStatus } from '../../lib/useOnlineStatus'
+import { HubLogo } from '../../components/layout/HubLogo'
 
 interface HabitSummary {
   total: number
@@ -109,7 +110,7 @@ export default function HomePage() {
 
   return <PageShell>
     <header className="mb-10 pt-4 text-center md:pt-8 md:text-left">
-      <div className="mb-4 inline-flex items-center justify-center rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-indigo-400"><Layers3 size={28} /></div>
+      <HubLogo size={64} className="mb-4 rounded-2xl" />
       <h1 className="mb-3 text-3xl font-bold text-strong md:text-4xl">Hub de Ferramentas</h1>
       <p className="mx-auto max-w-2xl text-lg text-slate-400 md:mx-0">Centralize sua produtividade. Acesse seus aplicativos integrados em um único lugar.</p>
     </header>

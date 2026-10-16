@@ -22,7 +22,7 @@ export const notificationsService = {
       const isTimer = mode === 'timer'
       const notification = new Notification(isTimer ? '⏰ Temporizador encerrado!' : 'Fase Pomodoro concluída', {
         body: body ?? (isTimer ? 'Seu temporizador chegou ao fim.' : 'A fase atual do Pomodoro chegou ao fim.'),
-        icon: '/favicon.svg',
+        icon: '/hub-logo.svg?v=1',
         tag: `hub-${mode}-finished`,
         silent: true,
       })

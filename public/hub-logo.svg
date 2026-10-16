@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title description">
+  <title id="title">Hub — ícone dark</title>
+  <desc id="description">Ícone do Hub com um símbolo H orgânico ciano, quatro nós conectados e fundo quadrado azul-escuro com cantos arredondados. Fora do quadrado, o fundo é transparente.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071D2C"/>
+      <stop offset="0.46" stop-color="#051321"/>
+      <stop offset="1" stop-color="#020913"/>
+    </linearGradient>
+    <radialGradient id="blueAtmosphere" cx="50%" cy="34%" r="65%">
+      <stop offset="0" stop-color="#0878A0" stop-opacity=".20"/>
+      <stop offset="0.45" stop-color="#015778" stop-opacity=".095"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="outline" x1="0" y1="0" x2=".82" y2="1">
+      <stop offset="0" stop-color="#13C9EC" stop-opacity=".87"/>
+      <stop offset=".35" stop-color="#067BA1" stop-opacity=".62"/>
+      <stop offset=".7" stop-color="#0A3D58" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#17A4CA" stop-opacity=".58"/>
+    </linearGradient>
+    <linearGradient id="markGradient" x1=".14" y1="0" x2=".87" y2="1">
+      <stop offset="0" stop-color="#0EF5F2"/>
+      <stop offset=".37" stop-color="#05DDEB"/>
+      <stop offset=".68" stop-color="#03C8EF"/>
+      <stop offset="1" stop-color="#02B8F0"/>
+    </linearGradient>
+    <radialGradient id="markShine" cx="27%" cy="9%" r="97%">
+      <stop offset="0" stop-color="#A3FFFF" stop-opacity=".28"/>
+      <stop offset=".45" stop-color="#9AFFFF" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="2.5"/>
+    </filter>
+    <clipPath id="roundedTile">
+      <rect x="20" y="20" width="472" height="472" rx="96" ry="96"/>
+    </clipPath>
+    <path id="hubMark" d="
+      M 156 119
+      C 132 119 114 137 114 160
+      C 114 184 130 199 150 202
+      C 175 205 190 223 190 252
+      C 190 279 174 297 151 301
+      C 129 305 114 322 114 346
+      C 114 371 134 391 158 391
+      C 184 391 202 373 202 348
+      C 202 334 195 323 197 311
+      C 201 287 226 272 256 272
+      C 286 272 311 287 315 311
+      C 317 323 310 334 310 348
+      C 310 373 328 391 354 391
+      C 378 391 398 371 398 346
+      C 398 322 383 305 361 301
+      C 338 297 322 279 322 252
+      C 322 223 337 205 362 202
+      C 382 199 398 184 398 160
+      C 398 137 380 119 356 119
+      C 330 119 311 138 311 161
+      C 311 176 319 190 315 205
+      C 309 228 289 239 256 239
+      C 223 239 203 228 197 205
+      C 193 190 201 176 201 161
+      C 201 138 182 119 156 119 Z"/>
+  </defs>
+
+  <!-- Fundo externo intencionalmente transparente: só existe preenchimento dentro do ícone. -->
+  <g clip-path="url(#roundedTile)">
+    <rect x="20" y="20" width="472" height="472" fill="url(#background)"/>
+    <rect x="20" y="20" width="472" height="472" fill="url(#blueAtmosphere)"/>
+    <ellipse cx="252" cy="212" rx="192" ry="163" fill="#04A9D7" opacity=".045" filter="url(#glow)"/>
+  </g>
+  <!-- Borda azul-ciano discreta, no mesmo estilo do app icon dark. -->
+  <rect x="21.5" y="21.5" width="469" height="469" rx="94.5" ry="94.5" fill="none" stroke="#07364C" stroke-width="5"/>
+  <rect x="21.5" y="21.5" width="469" height="469" rx="94.5" ry="94.5" fill="none" stroke="url(#outline)" stroke-width="2"/>
+  <!-- Brilho ambiental sutil sob o símbolo. -->
+  <use xlink:href="#hubMark" fill="#00CEFF" opacity=".45" filter="url(#glow)"/>
+  <!-- Corpo vetorial inteiramente escalável. -->
+  <use xlink:href="#hubMark" fill="url(#markGradient)"/>
+  <use xlink:href="#hubMark" fill="url(#markShine)"/>
+  <use xlink:href="#hubMark" fill="none" stroke="#71FFFF" stroke-opacity=".44" stroke-width="1.8"/>
+  <!-- Delicadas luzes laterais que remetem ao original. -->
+  <path d="M 126 216 C 149 236 151 265 127 285" fill="none" stroke="#08C9F5" stroke-width="2.7" opacity=".37" filter="url(#softGlow)"/>
+  <path d="M 326 358 C 327 376 339 389 359 394" fill="none" stroke="#35FAFF" stroke-width="3.3" opacity=".73" filter="url(#softGlow)"/>
+  <path d="M 327 359 C 328 379 341 392 361 395" fill="none" stroke="#18D6FB" stroke-width="1.8" opacity=".66"/>
+</svg>

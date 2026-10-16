@@ -25,10 +25,15 @@ export function SettingsPanel() {
 
   useEffect(() => {
     if (!open) return
+    const previousTitle = document.title
+    document.title = 'Configurações | Hub'
     closeButton.current?.focus()
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      if (document.title === 'Configurações | Hub') document.title = previousTitle
+    }
   }, [open])
 
   const enableNotifications = async () => {

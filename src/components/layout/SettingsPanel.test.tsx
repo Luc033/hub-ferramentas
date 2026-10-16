@@ -16,6 +16,7 @@ vi.mock('../../services/backup/backupService', () => ({
 
 beforeEach(() => {
   localStorage.clear()
+  document.title = 'Hub | Ferramentas Pessoais'
   backupMocks.download.mockReset().mockResolvedValue({ records: { habits: [{ id: 'a' }], tasks: [] } })
   backupMocks.parse.mockReset().mockReturnValue({ schemaVersion: 5, exportedAt: '2026-10-15T12:00:00.000Z', appVersion: '1.0.0', records: { habits: [{ id: 'a' }], tasks: [] }, preferences: { settings: {} } })
   backupMocks.importData.mockReset().mockResolvedValue({ imported: 2, ignored: 1, preferencesImported: true })
@@ -41,6 +42,7 @@ test('exporta e importa backup completo pelo painel global', async () => {
 test('oferece seleção exclusiva dos seis sons nativos e do áudio personalizado', () => {
   render(<SettingsProvider><SettingsPanel /></SettingsProvider>)
   fireEvent.click(screen.getByLabelText('Abrir configurações'))
+  expect(document.title).toBe('Configurações | Hub')
   expect(screen.getByText('SOM DO ALARME')).toBeInTheDocument()
   expect(screen.getAllByRole('radio')).toHaveLength(7)
   fireEvent.click(screen.getByRole('radio', { name: /Aurora/ }))

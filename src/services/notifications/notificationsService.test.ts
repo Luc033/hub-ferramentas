@@ -42,7 +42,7 @@ test('cria a notificação do Timer e direciona a aba existente ao clicar', () =
   })
   window.history.replaceState(null, '', '/')
   expect(notificationsService.notifyFinished('timer')).toBe(true)
-  expect(created).toMatchObject({ title: '⏰ Temporizador encerrado!', options: { body: 'Seu temporizador chegou ao fim.', icon: '/favicon.svg', tag: 'hub-timer-finished' } })
+  expect(created).toMatchObject({ title: '⏰ Temporizador encerrado!', options: { body: 'Seu temporizador chegou ao fim.', icon: '/hub-logo.svg?v=1', tag: 'hub-timer-finished' } })
   ;(created as unknown as { onclick: (event: Event) => void }).onclick(new Event('click'))
   expect(window.location.pathname).toBe('/timer')
   expect(focus).toHaveBeenCalledOnce()
