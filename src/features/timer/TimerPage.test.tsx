@@ -35,3 +35,11 @@ test('modo foco oculta informações secundárias e permite retornar', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Sair do modo foco' }))
   expect(screen.getByText('Duração total')).toBeInTheDocument()
 })
+
+test('oculta os controles de incremento durante a execução e ativa o progresso líquido', () => {
+  clockService.setDuration(60_000)
+  clockService.start()
+  renderTimer()
+  expect(screen.getByRole('button', { name: 'Aumentar MIN' })).toHaveClass('invisible')
+  expect(screen.getByTestId('timer-progress')).toHaveClass('timer-progress-liquid')
+})

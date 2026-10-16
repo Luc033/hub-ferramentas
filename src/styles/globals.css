@@ -28,6 +28,14 @@ button:disabled { cursor: not-allowed; }
 .text-muted { color: var(--text-muted); }
 .text-strong { color: var(--text-strong); }
 .timer-digits { font-variant-numeric: tabular-nums; }
+.timer-page { background: var(--bg); }
+.timer-progress-liquid { animation: timer-liquid-shimmer 1.8s ease-in-out infinite; }
+.timer-progress-alarm { animation: timer-alarm-glow 1.15s ease-in-out infinite; }
+@keyframes timer-liquid-shimmer { 0%, 100% { stroke-opacity: .82; } 50% { stroke-opacity: 1; } }
+@keyframes timer-alarm-glow {
+  0%, 100% { filter: drop-shadow(0 0 5px rgb(239 68 68 / .55)); opacity: .82; }
+  50% { filter: drop-shadow(0 0 18px rgb(239 68 68 / 1)); opacity: 1; }
+}
 .map-card-action { display: inline-flex; min-height: 2.25rem; align-items: center; justify-content: center; gap: .35rem; border-radius: .65rem; padding: .4rem .7rem; color: var(--text-muted); font-size: .8rem; font-weight: 600; }
 .map-card-action:hover { background: color-mix(in srgb, var(--surface-muted) 75%, transparent); color: var(--text-strong); }
 .editor-icon-button { display: inline-flex; min-width: 2.5rem; min-height: 2.5rem; align-items: center; justify-content: center; border-radius: .7rem; color: var(--text-muted); }

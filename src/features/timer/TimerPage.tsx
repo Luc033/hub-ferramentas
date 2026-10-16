@@ -25,13 +25,13 @@ function formatTotal(milliseconds: number) {
   return formatDuration(milliseconds)
 }
 
-function TimeControl({ label, value, max, disabled, onChange }: { label: string; value: number; max: number; disabled: boolean; onChange: (value: number) => void }) {
+function TimeControl({ label, value, max, disabled, prominent = false, onChange }: { label: string; value: number; max: number; disabled: boolean; prominent?: boolean; onChange: (value: number) => void }) {
   const setValue = (next: number) => onChange(Math.min(max, Math.max(0, next)))
   return <div className="flex min-w-0 flex-1 flex-col items-center">
-    <div className="flex w-full max-w-24 flex-col items-center rounded-2xl border border-slate-700/90 bg-slate-950/45 py-1 shadow-inner sm:max-w-28 sm:py-2">
-      <button type="button" aria-label={`Aumentar ${label}`} disabled={disabled || value >= max} onClick={() => setValue(value + 1)} className="flex min-h-9 w-full items-center justify-center text-cyan-400 transition-colors hover:text-cyan-200 disabled:opacity-30"><ChevronUp size={25} /></button>
-      <input aria-label={label} inputMode="numeric" maxLength={2} disabled={disabled} value={String(value).padStart(2, '0')} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setValue(Number(event.target.value.replace(/\D/g, '').slice(-2)) || 0)} className="timer-digits w-full border-0 bg-transparent px-0 text-center font-mono text-4xl font-bold text-white outline-none sm:text-5xl" />
-      <button type="button" aria-label={`Diminuir ${label}`} disabled={disabled || value <= 0} onClick={() => setValue(value - 1)} className="flex min-h-9 w-full items-center justify-center text-cyan-400 transition-colors hover:text-cyan-200 disabled:opacity-30"><ChevronDown size={25} /></button>
+    <div className={`flex w-full flex-col items-center rounded-2xl border border-slate-700/90 bg-slate-950/45 py-1 shadow-inner sm:py-2 ${prominent ? 'max-w-36 md:max-w-44' : 'max-w-24 sm:max-w-28'}`}>
+      <button type="button" aria-label={`Aumentar ${label}`} disabled={disabled || value >= max} onClick={() => setValue(value + 1)} className={`flex min-h-9 w-full items-center justify-center text-cyan-400 transition-[color,opacity] hover:text-cyan-200 disabled:opacity-30 ${disabled ? 'invisible' : ''}`}><ChevronUp size={prominent ? 34 : 25} /></button>
+      <input aria-label={label} inputMode="numeric" maxLength={2} disabled={disabled} value={String(value).padStart(2, '0')} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setValue(Number(event.target.value.replace(/\D/g, '').slice(-2)) || 0)} className={`timer-digits w-full border-0 bg-transparent px-0 text-center font-mono font-bold text-white outline-none ${prominent ? 'text-5xl sm:text-6xl md:text-7xl' : 'text-4xl sm:text-5xl'}`} />
+      <button type="button" aria-label={`Diminuir ${label}`} disabled={disabled || value <= 0} onClick={() => setValue(value - 1)} className={`flex min-h-9 w-full items-center justify-center text-cyan-400 transition-[color,opacity] hover:text-cyan-200 disabled:opacity-30 ${disabled ? 'invisible' : ''}`}><ChevronDown size={prominent ? 34 : 25} /></button>
     </div>
     <span className="mt-2 text-xs font-semibold uppercase tracking-wider text-slate-400 sm:text-sm">{label}</span>
   </div>
@@ -52,6 +52,7 @@ export default function TimerPage() {
   const { settings, updateSettings } = useSettings()
   const [focusMode, setFocusMode] = useState(false)
   const [notificationMessage, setNotificationMessage] = useState('')
+  const reducedMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const ownsClock = state.mode === 'timer'
   const running = ownsClock && state.status === 'running'
   const paused = ownsClock && state.status === 'paused'
@@ -87,27 +88,31 @@ export default function TimerPage() {
 
   return <PageShell wide>
     <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-400"><Clock3 size={20} />Temporizador</span>} />
-    <section className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/35 px-4 py-7 shadow-2xl sm:px-7 lg:px-10">
+    <section data-focus-mode={focusMode} className={`timer-page relative overflow-hidden px-4 py-7 sm:px-7 lg:px-10 ${focusMode ? 'min-h-[calc(100vh-10rem)]' : ''}`}>
       <div aria-hidden className={`pointer-events-none absolute left-1/2 top-1/3 h-96 w-96 -translate-x-1/2 rounded-full blur-[120px] ${finished ? 'bg-red-500/15' : 'bg-cyan-500/10'}`} />
-      <div className={`relative grid items-center gap-5 ${focusMode ? 'justify-center' : 'xl:grid-cols-[minmax(12rem,1fr)_minmax(27rem,31rem)_minmax(12rem,1fr)]'}`}>
+      <div className={`relative grid items-center gap-5 ${focusMode ? 'min-h-[calc(100vh-15rem)] place-items-center' : 'xl:grid-cols-[minmax(12rem,1fr)_minmax(27rem,31rem)_minmax(12rem,1fr)]'}`}>
         {!focusMode && <div className="order-2 grid gap-4 sm:grid-cols-2 xl:order-1 xl:grid-cols-1"><InfoCard icon={<Target size={38} />} label="Duração total" value={ownsClock && state.durationMs ? formatTotal(state.durationMs) : '—'} /><InfoCard icon={<Clock3 size={38} />} label="Início" value={ownsClock ? formatClockTime(state.startedAt) : '—'} /></div>}
-        <div className="order-1 mx-auto flex w-full max-w-[31rem] flex-col items-center xl:order-2">
-          <div className="relative aspect-square w-full max-w-[29rem]">
-            <svg aria-hidden className={`absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_0_12px_currentColor] ${progressColor}`} viewBox="0 0 100 100">
+        <div className={`order-1 mx-auto flex w-full flex-col items-center xl:order-2 ${focusMode ? 'max-w-[min(78vh,56rem)]' : 'max-w-[31rem]'}`}>
+          <div className={`relative aspect-square w-full ${focusMode ? 'max-w-[min(78vh,56rem)]' : 'max-w-[29rem]'}`}>
+            <svg aria-hidden className={`absolute inset-0 h-full w-full -rotate-90 ${progressColor} ${finished ? 'timer-progress-alarm' : ''}`} viewBox="0 0 100 100">
+              <defs>
+                <linearGradient id="timer-liquid-gradient" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="#67e8f9" /><stop offset=".42" stopColor="#06b6d4" /><stop offset=".72" stopColor="#22d3ee" /><stop offset="1" stopColor="#a5f3fc" /></linearGradient>
+                <filter id="timer-liquid-filter" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".025 .11" numOctaves="1" seed="7" result="noise">{running && !reducedMotion && <animate attributeName="baseFrequency" values=".025 .11;.04 .085;.025 .11" dur="2.8s" repeatCount="indefinite" />}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.1" xChannelSelector="R" yChannelSelector="B" /><feDropShadow dx="0" dy="0" stdDeviation="1.1" floodColor="#22d3ee" floodOpacity=".8" /></filter>
+              </defs>
               <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeOpacity=".13" strokeWidth="3" />
-              <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)} className="transition-[stroke-dashoffset,stroke] duration-300" />
+              <circle data-testid="timer-progress" cx="50" cy="50" r="46" fill="none" stroke={running ? 'url(#timer-liquid-gradient)' : 'currentColor'} filter={running ? 'url(#timer-liquid-filter)' : undefined} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)} className={`transition-[stroke-dashoffset,stroke] duration-300 ${running ? 'timer-progress-liquid' : ''}`} />
             </svg>
             <div className="absolute inset-[7%] flex flex-col items-center justify-center rounded-full border border-slate-800/80 bg-slate-950/55 px-[7%] shadow-[inset_0_0_60px_rgba(8,145,178,.08)] backdrop-blur-sm">
-              <div role="status" className={`mb-5 flex items-center gap-2 text-sm font-semibold sm:text-base ${statusColor}`}><span className={`h-2.5 w-2.5 rounded-full bg-current ${running ? 'shadow-[0_0_12px_currentColor]' : ''}`} />{status}</div>
+              <div role="status" className={`flex items-center gap-2 font-semibold ${focusMode ? 'mb-8 text-lg sm:text-xl' : 'mb-5 text-sm sm:text-base'} ${statusColor}`}><span className={`h-2.5 w-2.5 rounded-full bg-current ${running ? 'shadow-[0_0_12px_currentColor]' : ''}`} />{status}</div>
               <div aria-live="polite" aria-label={`Tempo restante: ${formatDuration(displayMs)}`} className="flex w-full items-start justify-center gap-2 sm:gap-3">
-                <TimeControl label="HRS" value={units.hours} max={99} disabled={!available} onChange={(value) => changeUnit('hours', value)} />
-                <TimeControl label="MIN" value={units.minutes} max={59} disabled={!available} onChange={(value) => changeUnit('minutes', value)} />
-                <TimeControl label="SEG" value={units.seconds} max={59} disabled={!available} onChange={(value) => changeUnit('seconds', value)} />
+                <TimeControl label="HRS" value={units.hours} max={99} disabled={!available} prominent={focusMode} onChange={(value) => changeUnit('hours', value)} />
+                <TimeControl label="MIN" value={units.minutes} max={59} disabled={!available} prominent={focusMode} onChange={(value) => changeUnit('minutes', value)} />
+                <TimeControl label="SEG" value={units.seconds} max={59} disabled={!available} prominent={focusMode} onChange={(value) => changeUnit('seconds', value)} />
               </div>
             </div>
           </div>
           {ownsClock && state.taskTitle && <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300"><span className="truncate">{state.taskTitle}</span><button aria-label="Desvincular tarefa" onClick={() => clockService.clearTask()} className="font-bold">×</button></div>}
-          <div className="mt-5 grid w-full grid-cols-2 gap-3 sm:gap-5">
+          <div className="mt-5 grid w-full max-w-xl grid-cols-2 gap-3 sm:gap-5">
             <Button variant="secondary" disabled={!canRestore} onClick={() => clockService.restoreConfiguredDuration()} className="py-4 text-base"><RotateCcw size={21} />Reiniciar</Button>
             <Button variant={finished ? 'danger' : 'timer'} disabled={available && displayMs <= 0} onClick={startOrToggle} className="py-4 text-base">{finished ? <><Square size={19} />Encerrar</> : running ? <><Pause size={21} />Pausar</> : <><Play size={21} />{paused ? 'Continuar' : 'Iniciar'}</>}</Button>
           </div>
