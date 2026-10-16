@@ -1,4 +1,4 @@
-import { Archive, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Download, Flame, Leaf, ListChecks, Pencil, Plus, Save, Trash2, Upload, Wind } from 'lucide-react'
+import { Archive, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Download, Flame, ListChecks, Pencil, Plus, Save, Trash2, Upload, Wind } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
 import { Button } from '../../components/ui/Button'
@@ -6,6 +6,7 @@ import { ConfirmModal } from '../../components/ui/Modal'
 import { DAYS, fromLocalDateKey, weekKeysForOffset, weekRangeLabel } from '../../lib/date'
 import { useBrowserRefresh } from '../../lib/useBrowserRefresh'
 import { audioService } from '../../services/audio/audioService'
+import habitsLogo from '../../assets/logo-habitos.webp'
 import { downloadBackup, importBackup, parseBackup, type ImportMode } from '../../services/backup/backupService'
 import { habitsRepository } from '../../services/db/habitsRepository'
 import { datedStreak, datedTotals, legacyStats, weeklyPercentage } from './stats'
@@ -124,7 +125,7 @@ export default function HabitsPage() {
 
   return <PageShell>
     <BackToHub />
-    <header className="app-card mb-6 flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center"><div><h1 className="flex items-center gap-3 text-2xl font-bold text-white md:text-3xl"><Leaf className="text-emerald-400" />Hábitos da Semana</h1><p className="mt-1 text-sm text-slate-400">Acompanhe suas metas diárias e crie sequências duradouras.</p></div><div className="flex items-center rounded-2xl border border-slate-700 bg-slate-900 p-3"><div className="border-r border-slate-700 px-4 text-center"><strong className="block text-2xl text-indigo-500">{habits.length}</strong><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Hábitos</span></div><div className="px-4 text-center"><strong className="block text-2xl text-emerald-500">{percentage}%</strong><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Semanal</span></div></div></header>
+    <header className="app-card mb-6 flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center"><div><h1 className="flex items-center gap-3 text-2xl font-bold text-white md:text-3xl"><img src={habitsLogo} alt="" className="h-11 w-11 shrink-0 object-contain" />Hábitos</h1><p className="mt-1 text-sm text-slate-400">Acompanhe suas metas diárias e crie sequências duradouras.</p></div><div className="flex items-center rounded-2xl border border-slate-700 bg-slate-900 p-3"><div className="border-r border-slate-700 px-4 text-center"><strong className="block text-2xl text-indigo-500">{habits.length}</strong><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Hábitos</span></div><div className="px-4 text-center"><strong className="block text-2xl text-emerald-500">{percentage}%</strong><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Semanal</span></div></div></header>
     {error && <div role="alert" className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200"><strong>Não foi possível salvar neste navegador.</strong> {error}</div>}
     {notice && <div role="status" className="mb-5 flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-200"><span>{notice}</span><button aria-label="Fechar aviso" onClick={() => setNotice('')}>×</button></div>}
     {info && !info.supportsDatedCheckins && info.habitCount > 0 && <section className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100"><div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center"><div><strong className="mb-1 flex items-center gap-2"><Archive size={17} />Base legada detectada</strong><p className="max-w-3xl text-amber-100/75">Os sete marcadores não possuem datas e continuam editáveis como legado. Eles não serão atribuídos à semana atual. Baixe um backup antes de habilitar novos check-ins datados.</p></div><Button variant="secondary" onClick={() => { void enableDates() }}><Download size={17} />Backup e habilitar datas</Button></div></section>}

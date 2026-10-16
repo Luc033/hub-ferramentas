@@ -23,3 +23,10 @@ test('widget de sons encerra a fonte global pela ação Parar', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Parar' }))
   expect(focusSoundService.getSnapshot()).toMatchObject({ source: null, status: 'stopped' })
 })
+
+test('cartão de Hábitos usa o logotipo de imagem e o novo nome', () => {
+  const tool = toolRegistry.find((item) => item.id === 'habits')!
+  const view = render(<SettingsProvider><MemoryRouter><ToolCard tool={tool} habitSummary={{ total: 0, completedToday: 0 }} tasksSummary={null} notesSummary={null} onRetry={vi.fn()} /></MemoryRouter></SettingsProvider>)
+  expect(screen.getByRole('heading', { name: 'Hábitos' })).toBeInTheDocument()
+  expect(view.container.querySelector('img[src*="logo-habitos"]')).toBeInTheDocument()
+})

@@ -1,4 +1,9 @@
 export const HOME_TITLE = 'Hub | Ferramentas Pessoais'
+export const HUB_FAVICON = '/hub-logo.svg?v=1'
+
+export function faviconForPath(pathname: string, habitsFavicon: string) {
+  return pathname === '/habits' ? habitsFavicon : HUB_FAVICON
+}
 
 export function documentTitleForPath(pathname: string) {
   if (pathname === '/') return HOME_TITLE

@@ -11,7 +11,8 @@ import { pomodoroService } from '../features/pomodoro/pomodoroService'
 import { focusSoundService } from '../services/audio/focusSoundService'
 import { FocusAudioPlayer } from '../components/layout/FocusAudioPlayer'
 import { useFocusSound } from '../services/audio/useFocusSound'
-import { documentTitleForPath } from './documentTitle'
+import { documentTitleForPath, faviconForPath } from './documentTitle'
+import habitsFavicon from '../assets/favicon-habitos.png'
 
 export function App() {
   const clock = useClock()
@@ -33,6 +34,9 @@ export function App() {
     if (clock.status === 'running' || clock.status === 'paused') document.title = `(${formatDuration(clock.remainingMs)}) ${clock.mode === 'pomodoro' ? 'Pomodoro' : 'Temporizador'} | Hub`
     else if (clock.status === 'alarming') document.title = '⏰ Alarme | Hub'
     else document.title = documentTitleForPath(location.pathname)
+    const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    favicon?.setAttribute('href', faviconForPath(location.pathname, habitsFavicon))
+    favicon?.setAttribute('type', location.pathname === '/habits' ? 'image/png' : 'image/svg+xml')
     if (clock.status === 'alarming') {
       const pomodoroMessage = clock.mode === 'pomodoro' ? pomodoroService.getSnapshot().transitionMessage ?? undefined : undefined
       void completionAlertsService.process(clock, settings.notificationsEnabled, pomodoroMessage).then((result) => {
