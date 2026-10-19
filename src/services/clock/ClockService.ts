@@ -15,6 +15,14 @@ export interface ClockState {
   taskTitle: string | null
 }
 
+export interface TimerHistoryRecord {
+  id: string
+  title: string
+  startedAt: number
+  finishedAt: number
+  durationMs: number
+}
+
 export function shouldConfirmClockReplacement(state: ClockState, nextMode: ClockMode) {
   if (state.status === 'idle') return false
   if (state.mode !== nextMode) return true
@@ -24,6 +32,7 @@ export function shouldConfirmClockReplacement(state: ClockState, nextMode: Clock
 export function hasConfiguredClockSession(state: ClockState) { return state.status !== 'idle' }
 
 const STORAGE_KEY = 'hub.timer.session.v1'
+const HISTORY_STORAGE_KEY = 'hub.timer.history.v1'
 const EMPTY_STATE: ClockState = { status: 'idle', mode: 'timer', durationMs: 0, remainingMs: 0, startedAt: null, endAt: null, finishedAt: null, notificationSent: false, runId: null, taskId: null, taskTitle: null }
 
 function createRunId(now: number) {
@@ -44,16 +53,20 @@ export class ClockService {
   private interval: ReturnType<typeof setInterval> | null = null
   private now: () => number
   private storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null
+  private history: TimerHistoryRecord[]
 
   constructor(options: { now?: () => number; storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null } = {}) {
     this.now = options.now ?? Date.now
     this.storage = options.storage === undefined ? (typeof localStorage === 'undefined' ? null : localStorage) : options.storage
     this.state = this.restore()
+    this.history = this.restoreHistory()
+    this.recordTimerCompletion()
     if (this.state.status === 'alarming') this.storage?.setItem(STORAGE_KEY, JSON.stringify(this.state))
     if (this.state.status === 'running') { this.sync(); this.startTicker() }
   }
 
   getSnapshot = () => this.state
+  getHistory = () => this.history
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
 
   setDuration(milliseconds: number, mode: ClockMode = 'timer') {
@@ -120,6 +133,7 @@ export class ClockService {
     if (remainingMs === 0) {
       this.stopTicker()
       this.state = { ...this.state, status: 'alarming', remainingMs: 0, endAt: null, finishedAt: this.now(), notificationSent: false }
+      this.recordTimerCompletion()
       this.commit()
       window.dispatchEvent(new CustomEvent('timer:finished'))
     } else {
@@ -136,6 +150,32 @@ export class ClockService {
     if (this.state.status === 'idle' && !this.state.taskId) this.storage?.removeItem(STORAGE_KEY)
     else this.storage?.setItem(STORAGE_KEY, JSON.stringify(this.state))
     this.emit()
+  }
+  private recordTimerCompletion() {
+    if (this.state.mode !== 'timer' || this.state.status !== 'alarming' || !this.state.runId || this.state.startedAt === null || this.state.finishedAt === null) return
+    if (this.history.some((record) => record.id === this.state.runId)) return
+    const record: TimerHistoryRecord = {
+      id: this.state.runId,
+      title: this.state.taskTitle?.trim() || 'Temporizador',
+      startedAt: this.state.startedAt,
+      finishedAt: this.state.finishedAt,
+      durationMs: this.state.durationMs,
+    }
+    this.history = [record, ...this.history]
+    this.storage?.setItem(HISTORY_STORAGE_KEY, JSON.stringify(this.history))
+  }
+  private restoreHistory(): TimerHistoryRecord[] {
+    try {
+      const raw = this.storage?.getItem(HISTORY_STORAGE_KEY)
+      if (!raw) return []
+      const parsed = JSON.parse(raw) as unknown
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((record): record is TimerHistoryRecord => {
+        if (!record || typeof record !== 'object') return false
+        const item = record as TimerHistoryRecord
+        return typeof item.id === 'string' && typeof item.title === 'string' && Number.isFinite(item.startedAt) && Number.isFinite(item.finishedAt) && Number.isFinite(item.durationMs)
+      }).sort((a, b) => b.finishedAt - a.finishedAt)
+    } catch { return [] }
   }
   private restore(): ClockState {
     try {

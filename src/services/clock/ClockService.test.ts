@@ -128,3 +128,18 @@ test('identifica substituições que exigem confirmação', () => {
   expect(shouldConfirmClockReplacement(clock.getSnapshot(), 'timer')).toBe(true)
   clock.destroy()
 })
+
+test('persiste um único registro do timer ao concluir, mesmo após restaurar a sessão', () => {
+  let now = 10_000
+  const values = new Map<string, string>()
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) }, removeItem: (key: string) => { values.delete(key) } }
+  const clock = new ClockService({ now: () => now, storage })
+  clock.setDuration(60_000, 'timer')
+  clock.start()
+  now += 60_000
+  clock.sync()
+  expect(clock.getHistory()).toEqual([expect.objectContaining({ title: 'Temporizador', startedAt: 10_000, finishedAt: 70_000, durationMs: 60_000 })])
+  const restored = new ClockService({ now: () => now + 1_000, storage })
+  expect(restored.getHistory()).toHaveLength(1)
+  clock.destroy(); restored.destroy()
+})

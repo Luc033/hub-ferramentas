@@ -173,6 +173,16 @@ g:has(> .mind-map-connection-hit:hover) > .mind-map-transverse { filter: drop-sh
 .timer-page .timer-action-secondary:hover:not(:disabled) { border-color: var(--timer-progress); background: var(--timer-surface-inner); color: var(--timer-progress); }
 .timer-page [role='switch'] { border-color: var(--timer-border); background: var(--timer-surface-inner); }
 .timer-page [role='switch'][aria-checked='true'] { border-color: var(--timer-progress); background: var(--timer-progress); }
+.timer-history-panel { border: 1px solid var(--timer-border); background: color-mix(in srgb, var(--timer-surface) 92%, transparent); box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+.timer-history-heading-icon { border: 1px solid color-mix(in srgb, var(--timer-progress) 42%, var(--timer-border)); background: color-mix(in srgb, var(--timer-progress) 11%, var(--timer-surface-inner)); color: var(--timer-progress); }
+.timer-history-date, .timer-history-date-button { border: 1px solid var(--timer-border); background: var(--timer-surface-inner); }
+.timer-history-date-button { display: grid; min-height: 2.9rem; place-items: center; border-radius: .75rem; color: var(--timer-card-value); transition: border-color 150ms ease, color 150ms ease; }
+.timer-history-date-button:hover:not(:disabled) { border-color: var(--timer-progress); color: var(--timer-progress); }
+.timer-history-date-button:disabled { opacity: .38; }
+.timer-history-total { border: 1px solid color-mix(in srgb, var(--timer-progress) 45%, var(--timer-border)); background: color-mix(in srgb, var(--timer-progress) 7%, var(--timer-surface-inner)); }
+.timer-history-total-value { color: var(--timer-progress); font-size: clamp(2rem, 4vw, 2.65rem); line-height: 1; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.timer-history-row { background: color-mix(in srgb, var(--timer-card) 86%, var(--timer-surface-inner)); border: 1px solid color-mix(in srgb, var(--timer-border) 72%, transparent); font-variant-numeric: tabular-nums; }
+.timer-history-empty { border: 1px dashed var(--timer-border); background: color-mix(in srgb, var(--timer-surface-inner) 75%, transparent); }
 .flip-clock-display-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 19rem; }
 @media (max-width: 640px) {
   .mind-map-editor footer span:first-child { max-width: 72vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

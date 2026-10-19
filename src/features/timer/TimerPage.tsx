@@ -9,6 +9,7 @@ import { clockService, formatDuration, shouldConfirmClockReplacement } from '../
 import { useClock } from '../../services/clock/useClock'
 import { notificationsService } from '../../services/notifications/notificationsService'
 import { TimerProgressRing } from './TimerProgressRing'
+import { TimerHistoryPanel } from './TimerHistoryPanel'
 import timerLogo from '../../assets/logo-timer.webp'
 
 const presets = [1, 5, 15, 30, 60]
@@ -71,6 +72,8 @@ export default function TimerPage() {
     <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-400"><img src={timerLogo} alt="" className="h-6 w-6 object-contain" />Temporizador</span>} />
     <section data-focus-mode={focusMode} className={`timer-page relative overflow-hidden px-4 py-7 sm:px-7 lg:px-10 ${focusMode ? 'min-h-[calc(100vh-10rem)]' : ''}`}>
       <div aria-hidden className={`timer-page-glow timer-page-glow-${statusState} pointer-events-none absolute left-1/2 top-1/3 h-96 w-96 -translate-x-1/2 rounded-full blur-[120px]`} />
+      <div className={`relative grid gap-7 ${focusMode ? '' : '2xl:grid-cols-[minmax(0,1fr)_30rem] 2xl:items-start'}`}>
+      <div className="min-w-0">
       <div className={`relative grid items-center gap-5 ${focusMode ? 'min-h-[calc(100vh-15rem)] place-items-center' : 'xl:grid-cols-[minmax(12rem,1fr)_minmax(27rem,31rem)_minmax(12rem,1fr)]'}`}>
         {!focusMode && <div className="order-2 grid gap-4 sm:grid-cols-2 xl:order-1 xl:grid-cols-1"><InfoCard icon={<Target size={38} />} label="Duração total" value={ownsClock && state.durationMs ? formatTotal(state.durationMs) : '—'} /><InfoCard icon={<Clock3 size={38} />} label="Início" value={ownsClock ? formatClockTime(state.startedAt) : '—'} /></div>}
         <div className={`order-1 mx-auto flex w-full flex-col items-center xl:order-2 ${focusMode ? 'max-w-[min(78vh,56rem)]' : 'max-w-[31rem]'}`}>
@@ -101,6 +104,9 @@ export default function TimerPage() {
         {notificationMessage && <p role="alert" className="relative mt-3 flex items-center justify-center gap-2 text-center text-sm text-amber-300"><BellOff size={16} />{notificationMessage}</p>}
       </>}
       {focusMode && <button onClick={() => setFocusMode(false)} className="relative mx-auto mt-6 flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 text-sm font-semibold text-slate-300 hover:text-white"><Focus size={17} />Sair do modo foco</button>}
+      </div>
+      {!focusMode && <TimerHistoryPanel />}
+      </div>
     </section>
   </PageShell>
 }
