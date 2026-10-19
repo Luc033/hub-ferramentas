@@ -14,7 +14,9 @@ export function recordsForLocalDay(history: TimerHistoryRecord[], selectedDate: 
 }
 
 export function formatHistoryDuration(milliseconds: number) {
-  const totalMinutes = Math.max(0, Math.floor(milliseconds / 60_000))
+  // O histórico usa HH:MM. Arredondar sessões positivas para cima evita que
+  // um encerramento manual de alguns segundos seja apresentado como 00:00.
+  const totalMinutes = Math.max(0, Math.ceil(milliseconds / 60_000))
   return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
 }
 

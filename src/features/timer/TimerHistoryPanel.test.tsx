@@ -10,6 +10,8 @@ beforeEach(() => {
 test('formata o total diário no padrão HH:MM', () => {
   expect(formatHistoryDuration(2 * 3_600_000 + 45 * 60_000)).toBe('02:45')
   expect(formatHistoryDuration(0)).toBe('00:00')
+  expect(formatHistoryDuration(1_000)).toBe('00:01')
+  expect(formatHistoryDuration(2 * 60_000 + 1_000)).toBe('00:03')
 })
 
 test('mostra estado vazio e impede avançar além de hoje', () => {
