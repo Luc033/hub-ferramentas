@@ -46,7 +46,7 @@ export default function TimerPage() {
   const displayMs = ownsClock ? state.remainingMs : 0
   const units = durationToFlipClockValues(displayMs)
   const selectedPreset = available && ownsClock && presets.find((preset) => preset * 60_000 === state.durationMs)
-  const elapsed = ownsClock ? Math.max(0, state.durationMs - state.remainingMs) : 0
+  const elapsed = ownsClock ? (finished ? state.durationMs + Math.max(0, Date.now() - (state.finishedAt ?? Date.now())) : Math.max(0, state.durationMs - state.remainingMs)) : 0
   const status = finished ? 'Encerrado' : running ? 'Em andamento' : paused ? 'Pausado' : 'Disponível'
   const statusState = finished ? 'expired' : paused ? 'paused' : running ? 'running' : 'available'
   const canRestore = ownsClock && ['running', 'paused', 'alarming'].includes(state.status)
@@ -64,7 +64,7 @@ export default function TimerPage() {
   }
   const changeUnit = (unit: FlipClockUnit, value: number) => replaceDuration(joinDuration({ ...units, [unit]: value }))
   const startOrToggle = () => {
-    if (finished) { clockService.stopAlarm(); return }
+    if (finished) { clockService.finishTimer(); return }
     if (running) { clockService.pause(); return }
     audioService.unlock(); clockService.start()
   }
@@ -97,9 +97,10 @@ export default function TimerPage() {
             </div>
           </div>
           {ownsClock && state.taskTitle && <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300"><span className="truncate">{state.taskTitle}</span><button aria-label="Desvincular tarefa" onClick={() => clockService.clearTask()} className="font-bold">×</button></div>}
-          <div className="mt-5 grid w-full max-w-xl grid-cols-2 gap-3 sm:gap-5">
+          <div className={`mt-5 grid w-full max-w-xl gap-3 sm:gap-5 ${running ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <Button variant="secondary" disabled={!canRestore} onClick={() => clockService.restoreConfiguredDuration()} className="timer-action-secondary py-4 text-base"><RotateCcw size={21} />Reiniciar</Button>
-            <Button variant={finished ? 'danger' : 'timer'} disabled={available && displayMs <= 0} onClick={startOrToggle} className="py-4 text-base">{finished ? <><Square size={19} />Encerrar</> : running ? <><Pause size={21} />Pausar</> : <><Play size={21} />{paused ? 'Continuar' : 'Iniciar'}</>}</Button>
+            <Button variant={finished ? 'danger' : 'timer'} disabled={available && displayMs <= 0} onClick={startOrToggle} className="py-4 text-base">{finished ? <><Square size={19} />Encerrado</> : running ? <><Pause size={21} />Pausar</> : <><Play size={21} />{paused ? 'Continuar' : 'Iniciar'}</>}</Button>
+            {running && <Button variant="danger" onClick={() => clockService.finishTimer()} className="py-4 text-base"><Square size={19} />Finalizar</Button>}
           </div>
         </div>
         {!focusMode && <div className="order-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-1"><InfoCard icon={<CircleGauge size={38} />} label="Tempo decorrido" value={ownsClock && state.startedAt !== null ? formatDuration(elapsed) : '—'} /><InfoCard icon={<Flag size={38} />} label="Término previsto" value={running ? formatClockTime(state.endAt) : '—'} /></div>}

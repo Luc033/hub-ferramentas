@@ -129,17 +129,73 @@ test('identifica substituições que exigem confirmação', () => {
   clock.destroy()
 })
 
-test('persiste um único registro do timer ao concluir, mesmo após restaurar a sessão', () => {
+test('registra a duração real ao encerrar manualmente antes do término', () => {
   let now = 10_000
   const values = new Map<string, string>()
   const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) }, removeItem: (key: string) => { values.delete(key) } }
   const clock = new ClockService({ now: () => now, storage })
   clock.setDuration(60_000, 'timer')
   clock.start()
-  now += 60_000
-  clock.sync()
-  expect(clock.getHistory()).toEqual([expect.objectContaining({ title: 'Temporizador', startedAt: 10_000, finishedAt: 70_000, durationMs: 60_000 })])
+  now += 18_000
+  clock.finishTimer()
+  expect(clock.getHistory()).toEqual([expect.objectContaining({ title: 'Temporizador', startedAt: 10_000, finishedAt: 28_000, durationMs: 18_000 })])
+  expect(clock.getSnapshot().status).toBe('ready')
   const restored = new ClockService({ now: () => now + 1_000, storage })
   expect(restored.getHistory()).toHaveLength(1)
   clock.destroy(); restored.destroy()
+})
+
+test('só cria registro ao encerrar o alarme e inclui o tempo excedente', () => {
+  let now = 0
+  const clock = new ClockService({ now: () => now, storage: null })
+  clock.setDuration(5_000)
+  clock.start()
+  now = 5_000
+  clock.sync()
+  expect(clock.getHistory()).toHaveLength(0)
+  now = 8_000
+  clock.finishTimer()
+  expect(clock.getHistory()).toEqual([expect.objectContaining({ startedAt: 0, finishedAt: 8_000, durationMs: 8_000 })])
+  clock.destroy()
+})
+
+test('registra a duração configurada ao encerrar exatamente no vencimento', () => {
+  let now = 0
+  const clock = new ClockService({ now: () => now, storage: null })
+  clock.setDuration(5_000)
+  clock.start()
+  now = 5_000
+  clock.finishTimer()
+  expect(clock.getHistory()).toEqual([expect.objectContaining({ durationMs: 5_000, finishedAt: 5_000 })])
+  clock.destroy()
+})
+
+test('não contabiliza pausas na duração ao retomar e encerrar', () => {
+  let now = 0
+  const clock = new ClockService({ now: () => now, storage: null })
+  clock.setDuration(10_000)
+  clock.start()
+  now = 2_000
+  clock.pause()
+  now = 12_000
+  clock.start()
+  now = 13_000
+  clock.finishTimer()
+  expect(clock.getHistory()).toEqual([expect.objectContaining({ durationMs: 3_000, finishedAt: 13_000 })])
+  clock.destroy()
+})
+
+test('mantém o alarme após atualizar e só registra quando for encerrado', () => {
+  const values = new Map<string, string>()
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) }, removeItem: (key: string) => { values.delete(key) } }
+  values.set('hub.timer.session.v1', JSON.stringify({ status: 'running', mode: 'timer', durationMs: 5_000, remainingMs: 5_000, startedAt: 0, endAt: 5_000, finishedAt: null, notificationSent: false, runId: 'run-1', taskId: null, taskTitle: null }))
+  let now = 8_000
+  const restored = new ClockService({ now: () => now, storage })
+  expect(restored.getSnapshot()).toMatchObject({ status: 'alarming', finishedAt: 5_000 })
+  expect(restored.getHistory()).toHaveLength(0)
+  restored.finishTimer()
+  expect(restored.getHistory()).toEqual([expect.objectContaining({ id: 'run-1', durationMs: 8_000, finishedAt: 8_000 })])
+  restored.finishTimer()
+  expect(restored.getHistory()).toHaveLength(1)
+  restored.destroy()
 })

@@ -60,9 +60,9 @@ export class ClockService {
     this.storage = options.storage === undefined ? (typeof localStorage === 'undefined' ? null : localStorage) : options.storage
     this.state = this.restore()
     this.history = this.restoreHistory()
-    this.recordTimerCompletion()
     if (this.state.status === 'alarming') this.storage?.setItem(STORAGE_KEY, JSON.stringify(this.state))
     if (this.state.status === 'running') { this.sync(); this.startTicker() }
+    if (this.state.status === 'alarming') this.startTicker()
   }
 
   getSnapshot = () => this.state
@@ -107,6 +107,24 @@ export class ClockService {
     this.commit()
   }
   stopAlarm() { if (this.state.status === 'alarming') this.restoreConfiguredDuration() }
+  finishTimer() {
+    if (this.state.mode !== 'timer' || !['running', 'alarming'].includes(this.state.status)) return
+    if (this.state.status === 'running') this.sync()
+    if (!['running', 'alarming'].includes(this.state.status) || !this.state.runId || this.state.startedAt === null) return
+
+    const endedAt = this.now()
+    const durationMs = this.state.status === 'alarming'
+      ? this.state.durationMs + Math.max(0, endedAt - (this.state.finishedAt ?? endedAt))
+      : Math.max(0, this.state.durationMs - this.state.remainingMs)
+    this.recordTimerCompletion({
+      id: this.state.runId,
+      title: this.state.taskTitle?.trim() || 'Temporizador',
+      startedAt: this.state.startedAt,
+      finishedAt: endedAt,
+      durationMs,
+    })
+    this.restoreConfiguredDuration()
+  }
   associateTask(mode: ClockMode, taskId: string, taskTitle: string) {
     this.stopTicker()
     this.state = { ...EMPTY_STATE, mode, taskId, taskTitle }
@@ -128,12 +146,12 @@ export class ClockService {
     this.commit()
   }
   sync = () => {
+    if (this.state.status === 'alarming') { this.emit(); return }
     if (this.state.status !== 'running' || this.state.endAt === null) return
     const remainingMs = Math.max(0, this.state.endAt - this.now())
     if (remainingMs === 0) {
-      this.stopTicker()
-      this.state = { ...this.state, status: 'alarming', remainingMs: 0, endAt: null, finishedAt: this.now(), notificationSent: false }
-      this.recordTimerCompletion()
+      const alarmAt = this.state.mode === 'timer' ? this.state.endAt : this.now()
+      this.state = { ...this.state, status: 'alarming', remainingMs: 0, endAt: null, finishedAt: alarmAt, notificationSent: false }
       this.commit()
       window.dispatchEvent(new CustomEvent('timer:finished'))
     } else {
@@ -151,16 +169,8 @@ export class ClockService {
     else this.storage?.setItem(STORAGE_KEY, JSON.stringify(this.state))
     this.emit()
   }
-  private recordTimerCompletion() {
-    if (this.state.mode !== 'timer' || this.state.status !== 'alarming' || !this.state.runId || this.state.startedAt === null || this.state.finishedAt === null) return
-    if (this.history.some((record) => record.id === this.state.runId)) return
-    const record: TimerHistoryRecord = {
-      id: this.state.runId,
-      title: this.state.taskTitle?.trim() || 'Temporizador',
-      startedAt: this.state.startedAt,
-      finishedAt: this.state.finishedAt,
-      durationMs: this.state.durationMs,
-    }
+  private recordTimerCompletion(record: TimerHistoryRecord) {
+    if (this.history.some((item) => item.id === record.id)) return
     this.history = [record, ...this.history]
     this.storage?.setItem(HISTORY_STORAGE_KEY, JSON.stringify(this.history))
   }
@@ -186,7 +196,7 @@ export class ClockService {
       const mode: ClockMode = parsed.mode === 'pomodoro' ? 'pomodoro' : 'timer'
       const legacyRunId = parsed.status === 'running' || parsed.status === 'paused' || parsed.status === 'alarming' ? `legacy-${mode}-${parsed.startedAt ?? 'unknown'}-${parsed.durationMs}` : null
       const normalized = { ...parsed, mode, notificationSent: Boolean(parsed.notificationSent), runId: typeof parsed.runId === 'string' ? parsed.runId : legacyRunId, taskId: typeof parsed.taskId === 'string' ? parsed.taskId : null, taskTitle: typeof parsed.taskTitle === 'string' ? parsed.taskTitle : null }
-      if (normalized.status === 'running' && normalized.endAt !== null && normalized.endAt <= this.now()) return { ...normalized, status: 'alarming', remainingMs: 0, endAt: null, finishedAt: this.now(), notificationSent: false }
+      if (normalized.status === 'running' && normalized.endAt !== null && normalized.endAt <= this.now()) return { ...normalized, status: 'alarming', remainingMs: 0, endAt: null, finishedAt: mode === 'timer' ? normalized.endAt : this.now(), notificationSent: false }
       return normalized
     } catch { return { ...EMPTY_STATE } }
   }

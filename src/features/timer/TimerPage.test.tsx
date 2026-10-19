@@ -44,6 +44,14 @@ test('oculta os controles de incremento durante a execução e ativa o progresso
   expect(screen.getByTestId('timer-progress')).toHaveClass('timer-progress-liquid')
 })
 
+test('exibe e aciona o botão de finalizar enquanto o timer está em andamento', () => {
+  clockService.setDuration(60_000)
+  clockService.start()
+  renderTimer()
+  fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }))
+  expect(clockService.getSnapshot().status).toBe('ready')
+})
+
 test('usa o logotipo do Temporizador no cabeçalho', () => {
   const view = renderTimer()
   expect(view.container.querySelector('img[src*="logo-timer"]')).toBeInTheDocument()
