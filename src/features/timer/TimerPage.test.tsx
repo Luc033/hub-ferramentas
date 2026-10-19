@@ -48,3 +48,12 @@ test('usa o logotipo do Temporizador no cabeçalho', () => {
   const view = renderTimer()
   expect(view.container.querySelector('img[src*="logo-timer"]')).toBeInTheDocument()
 })
+
+test('abre o histórico pelo botão do cabeçalho e fecha ao clicar fora', () => {
+  renderTimer()
+  expect(screen.queryByLabelText('Histórico do timer')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir histórico do timer' }))
+  expect(screen.getByLabelText('Histórico do timer')).toBeInTheDocument()
+  fireEvent.mouseDown(screen.getByTestId('timer-history-dropdown'))
+  expect(screen.queryByLabelText('Histórico do timer')).not.toBeInTheDocument()
+})

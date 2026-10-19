@@ -1,5 +1,5 @@
-import { Bell, BellOff, CircleGauge, Clock3, Flag, Focus, Pause, Play, RotateCcw, Square, Target } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { Bell, BellOff, CircleGauge, Clock3, Flag, Focus, History, Pause, Play, RotateCcw, Square, Target } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useSettings } from '../../app/providers/SettingsProvider'
 import { durationToFlipClockValues, FlipClockDisplay, type FlipClockUnit } from '../../components/flip-clock/FlipClockDisplay'
 import { BackToHub, PageShell } from '../../components/layout/PageShell'
@@ -35,6 +35,7 @@ export default function TimerPage() {
   const state = useClock()
   const { settings, updateSettings } = useSettings()
   const [focusMode, setFocusMode] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [notificationMessage, setNotificationMessage] = useState('')
   const reducedMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const ownsClock = state.mode === 'timer'
@@ -49,6 +50,13 @@ export default function TimerPage() {
   const status = finished ? 'Encerrado' : running ? 'Em andamento' : paused ? 'Pausado' : 'Disponível'
   const statusState = finished ? 'expired' : paused ? 'paused' : running ? 'running' : 'available'
   const canRestore = ownsClock && ['running', 'paused', 'alarming'].includes(state.status)
+
+  useEffect(() => {
+    if (!historyOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setHistoryOpen(false) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [historyOpen])
 
   const replaceDuration = (milliseconds: number) => {
     if (shouldConfirmClockReplacement(state, 'timer') && !window.confirm(`${state.mode === 'pomodoro' ? 'O Pomodoro' : 'O temporizador'} possui uma sessão ${state.status === 'paused' ? 'pausada' : 'ativa'}. Deseja substituí-la?`)) return
@@ -69,11 +77,13 @@ export default function TimerPage() {
   }
 
   return <PageShell wide>
-    <BackToHub aside={<span className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-400"><img src={timerLogo} alt="" className="h-6 w-6 object-contain" />Temporizador</span>} />
+    <BackToHub aside={<div className="flex items-center gap-2"><span className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-400"><img src={timerLogo} alt="" className="h-6 w-6 object-contain" />Temporizador</span><button type="button" aria-label="Abrir histórico do timer" aria-expanded={historyOpen} onClick={() => setHistoryOpen((open) => !open)} className="timer-history-trigger grid h-10 w-10 place-items-center rounded-xl"><History size={20} /></button></div>} />
+    {historyOpen && <div data-testid="timer-history-dropdown" className="fixed inset-0 z-50 bg-slate-950/30 p-4 sm:p-6" onMouseDown={() => setHistoryOpen(false)}>
+      <div className="ml-auto w-full max-w-[30rem] pt-14 sm:pt-16" onMouseDown={(event) => event.stopPropagation()}><TimerHistoryPanel /></div>
+    </div>}
     <section data-focus-mode={focusMode} className={`timer-page relative overflow-hidden px-4 py-7 sm:px-7 lg:px-10 ${focusMode ? 'min-h-[calc(100vh-10rem)]' : ''}`}>
       <div aria-hidden className={`timer-page-glow timer-page-glow-${statusState} pointer-events-none absolute left-1/2 top-1/3 h-96 w-96 -translate-x-1/2 rounded-full blur-[120px]`} />
-      <div className={`relative grid gap-7 ${focusMode ? '' : '2xl:grid-cols-[minmax(0,1fr)_30rem] 2xl:items-start'}`}>
-      <div className="min-w-0">
+      <div className="relative">
       <div className={`relative grid items-center gap-5 ${focusMode ? 'min-h-[calc(100vh-15rem)] place-items-center' : 'xl:grid-cols-[minmax(12rem,1fr)_minmax(27rem,31rem)_minmax(12rem,1fr)]'}`}>
         {!focusMode && <div className="order-2 grid gap-4 sm:grid-cols-2 xl:order-1 xl:grid-cols-1"><InfoCard icon={<Target size={38} />} label="Duração total" value={ownsClock && state.durationMs ? formatTotal(state.durationMs) : '—'} /><InfoCard icon={<Clock3 size={38} />} label="Início" value={ownsClock ? formatClockTime(state.startedAt) : '—'} /></div>}
         <div className={`order-1 mx-auto flex w-full flex-col items-center xl:order-2 ${focusMode ? 'max-w-[min(78vh,56rem)]' : 'max-w-[31rem]'}`}>
@@ -104,8 +114,6 @@ export default function TimerPage() {
         {notificationMessage && <p role="alert" className="relative mt-3 flex items-center justify-center gap-2 text-center text-sm text-amber-300"><BellOff size={16} />{notificationMessage}</p>}
       </>}
       {focusMode && <button onClick={() => setFocusMode(false)} className="relative mx-auto mt-6 flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 text-sm font-semibold text-slate-300 hover:text-white"><Focus size={17} />Sair do modo foco</button>}
-      </div>
-      {!focusMode && <TimerHistoryPanel />}
       </div>
     </section>
   </PageShell>

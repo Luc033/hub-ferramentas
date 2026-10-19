@@ -173,6 +173,8 @@ g:has(> .mind-map-connection-hit:hover) > .mind-map-transverse { filter: drop-sh
 .timer-page .timer-action-secondary:hover:not(:disabled) { border-color: var(--timer-progress); background: var(--timer-surface-inner); color: var(--timer-progress); }
 .timer-page [role='switch'] { border-color: var(--timer-border); background: var(--timer-surface-inner); }
 .timer-page [role='switch'][aria-checked='true'] { border-color: var(--timer-progress); background: var(--timer-progress); }
+.timer-history-trigger { border: 1px solid color-mix(in srgb, var(--timer-progress) 42%, var(--timer-border)); background: color-mix(in srgb, var(--timer-progress) 11%, var(--timer-surface-inner)); color: var(--timer-progress); transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
+.timer-history-trigger:hover, .timer-history-trigger[aria-expanded='true'] { border-color: var(--timer-progress); background: color-mix(in srgb, var(--timer-progress) 20%, var(--timer-surface-inner)); color: var(--timer-progress-highlight); }
 .timer-history-panel { border: 1px solid var(--timer-border); background: color-mix(in srgb, var(--timer-surface) 92%, transparent); box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
 .timer-history-heading-icon { border: 1px solid color-mix(in srgb, var(--timer-progress) 42%, var(--timer-border)); background: color-mix(in srgb, var(--timer-progress) 11%, var(--timer-surface-inner)); color: var(--timer-progress); }
 .timer-history-date, .timer-history-date-button { border: 1px solid var(--timer-border); background: var(--timer-surface-inner); }
